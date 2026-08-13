@@ -1,0 +1,17 @@
+services:
+  integration-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      APP_ENV: integration
+      DATABASE_URL: postgresql+psycopg://aslan:aslan@postgres:5432/aslan
+      REDIS_URL: redis://redis:6379/0
+    command: ["pytest", "-q", "-m", "integration"]
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy

@@ -1,0 +1,70 @@
+services:
+  - type: web
+    name: aslan-football-app
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aslan-football-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: aslan-football-cache
+          property: connectionString
+      - key: AUTH_TOKEN_SECRET
+        generateValue: true
+      - key: MVP_AUTH_SECRET
+        generateValue: true
+      - key: SESSION_MAINTENANCE_APPROVAL_SIGNING_SECRET
+        generateValue: true
+      - key: COMPLIANCE_ATTESTATION_SECRET
+        generateValue: true
+      - key: JWT_ACTIVE_KID
+        value: render-v1
+      - key: JWT_ISSUER
+        value: aslan-football
+      - key: JWT_AUDIENCE
+        value: aslan-football-mobile
+      - key: MVP_AUTH_TTL_SECONDS
+        value: "86400"
+      - key: PRODUCTION_READINESS_STRICT
+        value: "false"
+      - key: BUILD_ID
+        value: cloud-mobile-v1
+      - key: SOURCE_REVISION
+        value: render
+      - key: SCHEMA_VERSION
+        value: "11.0"
+      - key: OIDC_ISSUER
+        value: ""
+      - key: OIDC_AUDIENCE
+        value: ""
+      - key: OIDC_JWKS_URL
+        value: ""
+      - key: SPORTMONKS_API_TOKEN
+        sync: false
+
+  - type: keyvalue
+    name: aslan-football-cache
+    plan: starter
+    region: frankfurt
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+databases:
+  - name: aslan-football-db
+    plan: basic-256mb
+    region: frankfurt
+    databaseName: aslanfootball
+    user: aslanfootball
+    postgresMajorVersion: "17"
+    ipAllowList: []

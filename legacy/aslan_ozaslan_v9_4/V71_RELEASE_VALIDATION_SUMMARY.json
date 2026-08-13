@@ -1,0 +1,11 @@
+{
+  "version": "7.1-release-validation",
+  "tests_passed": 263,
+  "final_release_status": "blocked_until_real_smoke_test",
+  "remaining": [
+    "inject real SPORTMONKS_API_TOKEN",
+    "provide a real fixture id",
+    "run controlled provider smoke test",
+    "verify production environment controls"
+  ]
+}

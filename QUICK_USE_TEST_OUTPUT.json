@@ -1,0 +1,13 @@
+{
+  "match": "Aslan FC - Rakip FC",
+  "model_id": "quick-ensemble",
+  "competition": "Pilot Lig",
+  "expected_home_goals": 2.042,
+  "expected_away_goals": 0.856,
+  "home_probability": 48.49,
+  "draw_probability": 26.87,
+  "away_probability": 24.64,
+  "predicted_score": "2-0",
+  "recommended_result": "HOME",
+  "warning": "Bu çıktı olasılık tahminidir; kesin sonuç değildir."
+}

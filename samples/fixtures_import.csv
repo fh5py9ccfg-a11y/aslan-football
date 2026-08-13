@@ -1,0 +1,3 @@
+match_id,opponent,competition,kickoff_at,venue
+sample-m1,Örnek Rakip,Lig,1893456000,HOME
+sample-m2,İkinci Rakip,Kupa,1894060800,AWAY

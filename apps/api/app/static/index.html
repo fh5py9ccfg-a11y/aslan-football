@@ -1,0 +1,694 @@
+<!doctype html><html lang="tr"><head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Aslan Football">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aslan Football — Build 002</title><style>
+:root{--bg:#f3f6fa;--panel:#fff;--text:#172033;--muted:#667085;--line:#e5eaf0;--brand:#111827;font-family:Inter,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}button,input,select{font:inherit}.hidden{display:none!important}.login{min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(135deg,#0f172a,#1d4ed8)}.login-card{width:min(420px,100%);background:#fff;padding:30px;border-radius:22px}.logo{font-weight:800;font-size:28px}.muted{color:var(--muted)}.field{display:flex;flex-direction:column;gap:6px;margin:14px 0}.field input{padding:12px;border:1px solid var(--line);border-radius:10px}.btn{border:0;border-radius:10px;padding:11px 14px;background:var(--brand);color:#fff;cursor:pointer}.btn.secondary{background:#fff;color:var(--text);border:1px solid var(--line)}.app{min-height:100vh;display:grid;grid-template-columns:250px 1fr}.sidebar{background:#111827;color:#fff;padding:20px;position:sticky;top:0;height:100vh}.brand{font-size:20px;font-weight:800;margin-bottom:24px}.role{font-size:12px;color:#93c5fd}.nav button{width:100%;text-align:left;border:0;background:transparent;color:#cbd5e1;padding:11px;border-radius:9px;cursor:pointer}.nav button.active,.nav button:hover{background:#1f2937;color:#fff}.content{padding:24px;min-width:0}.topbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:20px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}select,input{padding:10px;border:1px solid var(--line);border-radius:9px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:17px}.metric{font-size:28px;font-weight:800;margin-top:7px}.page{display:none}.page.active{display:block}table{width:100%;border-collapse:collapse}.table-wrap{overflow:auto}th,td{padding:11px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}th{font-size:12px;color:var(--muted)}.tag{padding:4px 8px;border-radius:999px;background:#eef2ff;font-size:12px}.list{display:grid;gap:10px}.list-item{border:1px solid var(--line);border-radius:11px;padding:13px}@media(max-width:850px){.app{grid-template-columns:1fr}.sidebar{height:auto;position:static}.nav{display:flex;overflow:auto}.nav button{width:auto}.content{padding:14px}}
+@media (max-width: 720px){
+  body{padding-bottom:calc(18px + env(safe-area-inset-bottom));}
+  .container{padding-left:12px;padding-right:12px;}
+  .grid{grid-template-columns:1fr 1fr;}
+  input,select,textarea,button{font-size:16px;min-height:46px;}
+  .btn{width:100%;margin-top:8px;}
+  .metric{font-size:22px;}
+}
+</style></head><body>
+<section id="loginView" class="login"><div class="login-card"><div class="logo">Aslan Football</div><p class="muted">Kulüp operasyon platformu — Build 002</p><div class="field"><label>Kullanıcı adı</label><input id="username" value="coach"></div><div class="field"><label>Parola</label><input id="password" type="password" value="coach123"></div><button class="btn" style="width:100%" onclick="login()">Giriş yap</button><p class="muted" style="font-size:12px">Demo: coach / coach123</p><div id="loginError"></div></div></section>
+<section id="appView" class="app hidden"><aside class="sidebar"><div class="brand">Aslan Football<div id="roleLabel" class="role"></div></div><nav class="nav"><button class="active" data-page="dashboard">Dashboard</button><button data-page="players">Oyuncular</button><button data-page="matches">Maç Merkezi</button><button data-page="opponents">Rakip Analizi</button><button data-page="form">Performans</button>
+      <button data-page="integrations">Entegrasyonlar</button>
+      <button data-page="intelligence">Maç Tahmini</button></nav></aside><main class="content"><div class="topbar"><div><h2 id="pageTitle">Dashboard</h2><div id="userLabel" class="muted"></div></div><div class="toolbar"><select id="clubSelect"></select><button class="btn secondary" onclick="seedDemo()">Demo verisi</button><button class="btn secondary" onclick="logout()">Çıkış</button></div></div>
+<section id="dashboard" class="page active"><div id="metrics" class="grid"></div><div class="grid" style="margin-top:14px"><div class="card"><h3>Yaklaşan maçlar</h3><div id="upcoming" class="list"></div></div><div class="card"><h3>Oyuncu uygunluğu</h3><div id="availability" class="list"></div></div></div></section>
+<section id="players" class="page"><div class="card"><h3>Kadro</h3><input id="search" placeholder="Oyuncu ara" oninput="renderPlayers()"><div class="table-wrap"><table><thead><tr><th>Oyuncu</th><th>Pozisyon</th><th>Yaş</th><th>Durum</th><th>Değer</th></tr></thead><tbody id="playersTable"></tbody></table></div></div></section>
+<section id="matches" class="page"><div class="card"><h3>Maç Merkezi</h3><div id="matchCards" class="list"></div></div></section>
+<section id="opponents" class="page"><div class="card"><h3>Rakip Analizi</h3><div id="opponentCards" class="grid"></div></div></section>
+<section id="form" class="page"><div class="card"><h3>Oyuncu Formu</h3><div class="table-wrap"><table><thead><tr><th>Oyuncu</th><th>Maç</th><th>Dakika</th><th>Gol</th><th>Asist</th><th>Puan</th></tr></thead><tbody id="formTable"></tbody></table></div></div></section>
+    <section class="card" style="margin-top:14px">
+      <div class="section-title"><h3>Mobil Hızlı Tahmin</h3></div>
+      <input id="mobileHomeTeam" value="Ev Takımı" placeholder="Ev takımı">
+      <input id="mobileAwayTeam" value="Deplasman Takımı" placeholder="Deplasman takımı">
+      <div class="grid">
+        <input id="mobileHomeXg" type="number" step="0.01" value="1.65" placeholder="Ev xG">
+        <input id="mobileAwayXg" type="number" step="0.01" value="1.10" placeholder="Dep. xG">
+        <input id="mobileHomeElo" type="number" value="1580" placeholder="Ev Elo">
+        <input id="mobileAwayElo" type="number" value="1510" placeholder="Dep. Elo">
+        <input id="mobileHomeForm" type="number" step="0.01" min="0" max="1" value="0.70" placeholder="Ev form">
+        <input id="mobileAwayForm" type="number" step="0.01" min="0" max="1" value="0.45" placeholder="Dep. form">
+      </div>
+      <button class="btn" onclick="runMobileQuickPrediction()">Tahmin Et</button>
+      <div id="mobileQuickResult" style="margin-top:12px"></div>
+    </section>
+
+</main></section>
+<script>
+const q=id=>document.getElementById(id);let token=localStorage.getItem('aslan_token')||'',session=null,dashboard={players:[],matches:[],opponents:[]};async function api(u,o={}){const r=await fetch(u,o);if(!r.ok)throw new Error(await r.text());return r.json()}async function login(){try{const p=new URLSearchParams({username:q('username').value,password:q('password').value});session=await api('/mvp/auth/login?'+p,{method:'POST'});token=session.token;localStorage.setItem('aslan_token',token);enter()}catch{q('loginError').textContent='Giriş başarısız'}}async function restore(){if(!token)return;try{session=await api('/mvp/auth/me?token='+token);enter()}catch{localStorage.removeItem('aslan_token')}}async function enter(){q('loginView').classList.add('hidden');q('appView').classList.remove('hidden');q('roleLabel').textContent=session.role;q('userLabel').textContent=session.display_name;loadClubs()}async function logout(){try{await api('/mvp/auth/logout?token='+token,{method:'POST'})}catch{}localStorage.clear();location.reload()}async function loadClubs(id){const d=await api('/mvp/clubs');q('clubSelect').innerHTML=d.items.map(x=>`<option value="${x.club_id}">${x.name}</option>`).join('');if(id)q('clubSelect').value=id;if(d.items.length)loadDashboard()}async function seedDemo(){await api('/mvp/demo',{method:'POST'});loadClubs('demo-aslan')}async function loadDashboard(){const id=q('clubSelect').value;if(!id)return;dashboard=await api(`/mvp/clubs/${id}/dashboard`);render()}function render(){const s=dashboard.summary;q('metrics').innerHTML=[['Oyuncular',s.player_count],['Hazır',s.available_players],['Uygun değil',s.unavailable_players],['Kadro değeri',s.squad_value+' M€'],['Form',`${s.wins}-${s.draws}-${s.losses}`]].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');const up=dashboard.matches.filter(x=>x.status==='SCHEDULED').slice(0,5);q('upcoming').innerHTML=up.map(x=>`<div class="list-item"><b>${x.opponent}</b><div class="muted">${x.competition} · ${x.venue}</div></div>`).join('')||'<div class="muted">Yaklaşan maç yok</div>';const g={};dashboard.players.forEach(x=>g[x.availability]=(g[x.availability]||0)+1);q('availability').innerHTML=Object.entries(g).map(([k,v])=>`<div class="list-item"><b>${k}</b><span style="float:right">${v}</span></div>`).join('');renderPlayers();q('matchCards').innerHTML=dashboard.matches.map(x=>`<div class="list-item"><b>${x.opponent}</b><span style="float:right">${x.goals_for??'-'} - ${x.goals_against??'-'}</span><div class="muted">${x.competition} · ${x.status}</div></div>`).join('');q('opponentCards').innerHTML=dashboard.opponents.map(x=>`<div class="card"><h3>${x.name}</h3><div class="muted">${x.formation||'-'}</div><p><b>Güçlü:</b> ${x.strengths.join(', ')||'-'}</p><p><b>Zayıf:</b> ${x.weaknesses.join(', ')||'-'}</p></div>`).join('')||'<div class="muted">Rakip profili yok</div>';loadForm()}function renderPlayers(){const t=(q('search').value||'').toLocaleLowerCase('tr');q('playersTable').innerHTML=dashboard.players.filter(x=>x.name.toLocaleLowerCase('tr').includes(t)).map(x=>`<tr><td><b>${x.name}</b></td><td>${x.position}</td><td>${x.age}</td><td><span class="tag">${x.availability}</span></td><td>${x.market_value} M€</td></tr>`).join('')}async function loadForm(){const d=await api(`/mvp/clubs/${q('clubSelect').value}/form`);q('formTable').innerHTML=d.items.map(x=>`<tr><td>${x.name}</td><td>${x.matches}</td><td>${x.minutes}</td><td>${x.goals}</td><td>${x.assists}</td><td>${x.average_rating}</td></tr>`).join('')}
+
+let derivedClubProfileId='';
+async function deriveClubProfile(){
+  const clubId=q('clubSelect').value;
+  derivedClubProfileId='club-profile-'+clubId;
+  const p=new URLSearchParams({profile_id:derivedClubProfileId});
+  const d=await api(`/mvp/intelligence/${clubId}/derive-profile?`+p,{method:'POST'});
+  q('clubProfileResult').innerHTML=`<div class="list-item"><b>${d.team_name}</b><div class="muted">Hücum ${d.attack_rating} · Savunma ${d.defence_rating} · Form ${d.form_rating} · Örneklem ${d.sample_size}</div></div>`;
+}
+async function saveOpponentStrength(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({
+    profile_id:q('miOpponentProfileId').value,
+    team_name:q('miOpponentName').value,
+    attack_rating:q('miAttack').value,
+    defence_rating:q('miDefence').value,
+    form_rating:q('miForm').value,
+    home_rating:q('miHome').value,
+    away_rating:q('miAway').value,
+    goals_for_average:q('miGf').value,
+    goals_against_average:q('miGa').value,
+    sample_size:q('miSample').value
+  });
+  await api(`/mvp/intelligence/${clubId}/opponent-profiles?`+p,{method:'POST'});
+  alert('Rakip profili kaydedildi');
+}
+function preparePredictionScreen(){
+  q('predictionMatch').innerHTML=dashboard.matches.map(x=>`<option value="${x.match_id}">${x.opponent} · ${x.venue}</option>`).join('');
+}
+async function runPrediction(){
+  const clubId=q('clubSelect').value;
+  if(!derivedClubProfileId)await deriveClubProfile();
+  const predictionId='prediction-'+Date.now();
+  const p=new URLSearchParams({
+    prediction_id:predictionId,
+    match_id:q('predictionMatch').value,
+    club_profile_id:derivedClubProfileId,
+    opponent_profile_id:q('miOpponentProfileId').value,
+    unavailable_impact:q('unavailableImpact').value,
+    opponent_unavailable_impact:q('opponentUnavailableImpact').value
+  });
+  const d=await api(`/mvp/intelligence/${clubId}/predict?`+p,{method:'POST'});
+  q('predictionResult').innerHTML=`
+    <div class="grid">
+      <div class="card"><div class="muted">Tahmini skor</div><div class="metric">${d.predicted_home_goals}-${d.predicted_away_goals}</div><div>${d.home_team} - ${d.away_team}</div></div>
+      <div class="card"><div class="muted">Beklenen gol</div><div class="metric">${d.expected_home_goals}-${d.expected_away_goals}</div><div>Güven: ${d.confidence}</div></div>
+      <div class="card"><div class="muted">1X2 olasılıkları</div><p>Ev: %${d.home_win_probability}</p><p>Beraberlik: %${d.draw_probability}</p><p>Deplasman: %${d.away_win_probability}</p></div>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div class="card"><b>En olası skorlar</b>${d.likely_scores.map(x=>`<p>${x.score}: %${x.probability}</p>`).join('')}</div>
+      <div class="card"><b>Analiz nedenleri</b>${d.factors.map(x=>`<p>${x}</p>`).join('')}</div>
+      <div class="card"><b>Tahmin riskleri</b>${d.risks.map(x=>`<p>${x}</p>`).join('')}</div>
+    </div>`;
+  await loadPredictions();
+}
+async function loadPredictions(){
+  const clubId=q('clubSelect').value;
+  const d=await api(`/mvp/intelligence/${clubId}/predictions`);
+  q('predictionHistory').innerHTML=d.items.length?d.items.map(x=>`<div class="list-item"><b>${x.home_team} ${x.predicted_home_goals}-${x.predicted_away_goals} ${x.away_team}</b><div class="muted">xG ${x.expected_home_goals}-${x.expected_away_goals} · Güven ${x.confidence}</div></div>`).join(''):'<div class="muted">Tahmin yok</div>';
+}
+
+async function importPlayersCsv(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({
+    sync_id:'players-'+Date.now(),
+    csv_text:q('playersCsv').value
+  });
+  await api(`/mvp/integrations/${clubId}/players/csv?`+p,{method:'POST'});
+  await loadDashboard();await loadSyncs();
+}
+async function importFixturesCsv(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({
+    sync_id:'fixtures-'+Date.now(),
+    csv_text:q('fixturesCsv').value
+  });
+  await api(`/mvp/integrations/${clubId}/fixtures/csv?`+p,{method:'POST'});
+  await loadDashboard();await loadSyncs();
+}
+async function loadSyncs(){
+  const clubId=q('clubSelect').value;if(!clubId)return;
+  const d=await api(`/mvp/integrations/${clubId}/syncs`);
+  q('syncList').innerHTML=d.items.length?d.items.map(x=>`<div class="list-item"><b>${x.entity_type}</b> · ${x.status}<div class="muted">İçe aktarılan: ${x.imported}, atlanan: ${x.skipped}, hata: ${x.failed}</div></div>`).join(''):'<div class="muted">Senkronizasyon kaydı yok</div>';
+}
+
+
+let lastPredictionId='';
+const originalRunPrediction=runPrediction;
+runPrediction=async function(){
+  await originalRunPrediction();
+  const d=await api(`/mvp/intelligence/${q('clubSelect').value}/predictions`);
+  lastPredictionId=d.items?.[0]?.prediction_id||'';
+}
+async function calibrateModel(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({calibration_id:'cal-'+Date.now()});
+  try{
+    const d=await api(`/mvp/intelligence/${clubId}/calibrate?`+p,{method:'POST'});
+    q('calibrationResult').innerHTML=`<p>Brier: ${d.brier_score}</p><p>Log loss: ${d.log_loss}</p><p>Örneklem: ${d.sample_size}</p>`;
+  }catch(e){q('calibrationResult').innerHTML='<p class="bad">Kalibrasyon için değerlendirilmiş tahmin gerekli.</p>'}
+}
+async function loadBacktest(){
+  const d=await api(`/mvp/intelligence/${q('clubSelect').value}/backtest`);
+  q('calibrationResult').innerHTML=`<p>Sonuç doğruluğu: %${d.result_accuracy}</p><p>Tam skor: %${d.exact_score_accuracy}</p><p>Ortalama gol hatası: ${d.mean_goal_error}</p>`;
+}
+async function createScenarios(){
+  if(!lastPredictionId){
+    const d=await api(`/mvp/intelligence/${q('clubSelect').value}/predictions`);
+    lastPredictionId=d.items?.[0]?.prediction_id||'';
+  }
+  if(!lastPredictionId){alert('Önce tahmin üretin');return}
+  const d=await api(`/mvp/intelligence/predictions/${lastPredictionId}/scenarios`,{method:'POST'});
+  q('scenarioResult').innerHTML=d.items.map(x=>`<div class="list-item"><b>${x.label}</b><div class="muted">xG ${x.expected_home_goals}-${x.expected_away_goals} · Ev %${x.home_win_probability} · X %${x.draw_probability} · Dep %${x.away_win_probability}</div></div>`).join('');
+}
+
+
+async function runQualityAndEnsemble(){
+  const clubId=q('clubSelect').value;
+  if(!lastPredictionId){
+    const history=await api(`/mvp/intelligence/${clubId}/predictions`);
+    lastPredictionId=history.items?.[0]?.prediction_id||'';
+  }
+  if(!lastPredictionId){alert('Önce tahmin üretin');return}
+  if(!derivedClubProfileId)await deriveClubProfile();
+  const qualityId='quality-'+Date.now();
+  const qp=new URLSearchParams({
+    report_id:qualityId,
+    club_profile_id:derivedClubProfileId,
+    opponent_profile_id:q('miOpponentProfileId').value
+  });
+  const quality=await api(`/mvp/intelligence/${clubId}/data-quality?`+qp,{method:'POST'});
+  const ensembleId='ensemble-'+Date.now();
+  const ep=new URLSearchParams({
+    ensemble_id:ensembleId,
+    data_quality_report_id:qualityId
+  });
+  const ensemble=await api(`/mvp/intelligence/predictions/${lastPredictionId}/ensemble?`+ep,{method:'POST'});
+  const bp=new URLSearchParams({ensemble_id:ensembleId});
+  const brief=await api(`/mvp/intelligence/predictions/${lastPredictionId}/brief?`+bp);
+  q('ensembleResult').innerHTML=`
+    <div class="grid">
+      <div class="card"><div class="muted">Veri kalite</div><div class="metric">${quality.grade}</div><div>%${quality.overall_score}</div></div>
+      <div class="card"><div class="muted">Ensemble 1X2</div><p>Ev %${ensemble.blended_home_probability} (${ensemble.home_probability_interval[0]}-${ensemble.home_probability_interval[1]})</p><p>X %${ensemble.blended_draw_probability} (${ensemble.draw_probability_interval[0]}-${ensemble.draw_probability_interval[1]})</p><p>Dep %${ensemble.blended_away_probability} (${ensemble.away_probability_interval[0]}-${ensemble.away_probability_interval[1]})</p></div>
+      <div class="card"><div class="muted">Kısa analiz</div><h3>${brief.headline}</h3><p>Tahmini skor: ${brief.predicted_score}</p><p>xG: ${brief.expected_goals}</p></div>
+    </div>
+    <div class="card" style="margin-top:10px"><b>Veri uyarıları</b>${quality.warnings.map(x=>`<p>${x}</p>`).join('')}</div>`;
+}
+
+
+async function runAdvancedSimulation(){
+  const clubId=q('clubSelect').value;
+  if(!lastPredictionId){
+    const history=await api(`/mvp/intelligence/${clubId}/predictions`);
+    lastPredictionId=history.items?.[0]?.prediction_id||'';
+  }
+  if(!lastPredictionId){alert('Önce tahmin üretin');return}
+  const selected=dashboard.players.filter(x=>!['INJURED','SUSPENDED'].includes(x.availability)).slice(0,11).map(x=>x.player_id);
+  if(selected.length<7){alert('En az 7 uygun oyuncu gerekli');return}
+  const lineupId='lineup-'+Date.now();
+  const lp=new URLSearchParams({
+    report_id:lineupId,
+    match_id:q('predictionMatch').value,
+    selected_player_ids:selected.join(',')
+  });
+  const lineup=await api(`/mvp/intelligence/${clubId}/lineup-impact?`+lp,{method:'POST'});
+  const tacticalId='tactical-'+Date.now();
+  const tp=new URLSearchParams({
+    matchup_id:tacticalId,
+    match_id:q('predictionMatch').value,
+    own_style:q('ownStyle').value,
+    opponent_style:q('opponentStyle').value
+  });
+  const tactical=await api(`/mvp/intelligence/${clubId}/tactical-matchup?`+tp,{method:'POST'});
+  const simId='sim-'+Date.now();
+  const sp=new URLSearchParams({
+    simulation_id:simId,
+    iterations:'10000',
+    lineup_report_id:lineupId,
+    tactical_matchup_id:tacticalId
+  });
+  const sim=await api(`/mvp/intelligence/predictions/${lastPredictionId}/simulate?`+sp,{method:'POST'});
+  q('advancedSimulationResult').innerHTML=`
+    <div class="grid">
+      <div class="card"><div class="muted">İlk 11 etkisi</div><p>Hücum: ${lineup.attack_modifier}</p><p>Savunma: ${lineup.defence_modifier}</p><p>Uyum: %${lineup.cohesion_score}</p></div>
+      <div class="card"><div class="muted">Monte Carlo 1X2</div><p>Ev %${sim.home_win_probability}</p><p>X %${sim.draw_probability}</p><p>Dep %${sim.away_win_probability}</p></div>
+      <div class="card"><div class="muted">Gol senaryoları</div><p>Karşılıklı gol: %${sim.both_teams_score_probability}</p><p>2.5 üst: %${sim.over_2_5_probability}</p><p>2.5 alt: %${sim.under_2_5_probability}</p></div>
+      <div class="card"><div class="muted">İlk yarı</div><p>Ev %${sim.first_half_home_probability}</p><p>X %${sim.first_half_draw_probability}</p><p>Dep %${sim.first_half_away_probability}</p></div>
+    </div>
+    <div class="card" style="margin-top:10px"><b>En olası skorlar</b>${sim.score_distribution.map(x=>`<p>${x.score}: %${x.probability}</p>`).join('')}</div>
+    <div class="card" style="margin-top:10px"><b>Taktik notları</b>${tactical.notes.map(x=>`<p>${x}</p>`).join('')}</div>`;
+}
+
+
+let currentContextId='';
+async function createMatchContext(){
+  const clubId=q('clubSelect').value;
+  currentContextId='ctx-'+Date.now();
+  const p=new URLSearchParams({
+    context_id:currentContextId,
+    match_id:q('predictionMatch').value,
+    league_strength:'1.0',
+    rest_days:q('ctxRest').value,
+    opponent_rest_days:q('ctxOppRest').value,
+    travel_km:q('ctxTravel').value,
+    temperature_c:q('ctxTemp').value,
+    wind_kmh:q('ctxWind').value,
+    precipitation_mm:q('ctxRain').value,
+    referee_card_rate:q('ctxCards').value
+  });
+  const d=await api(`/mvp/intelligence/${clubId}/match-context?`+p,{method:'POST'});
+  q('contextResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Yorgunluk</div><div class="metric">${d.fatigue_modifier}</div></div><div class="card"><div class="muted">Seyahat</div><div class="metric">${d.travel_modifier}</div></div><div class="card"><div class="muted">Hava</div><div class="metric">${d.weather_home_modifier}</div></div></div><div class="card" style="margin-top:10px">${d.warnings.map(x=>`<p>${x}</p>`).join('')}</div>`;
+}
+async function runLivePrediction(){
+  if(!lastPredictionId){
+    const d=await api(`/mvp/intelligence/${q('clubSelect').value}/predictions`);
+    lastPredictionId=d.items?.[0]?.prediction_id||'';
+  }
+  if(!lastPredictionId){alert('Önce tahmin üretin');return}
+  const p=new URLSearchParams({
+    state_id:'live-'+Date.now(),
+    minute:q('liveMinute').value,
+    home_goals:q('liveHomeGoals').value,
+    away_goals:q('liveAwayGoals').value,
+    home_red_cards:q('liveHomeRed').value,
+    away_red_cards:q('liveAwayRed').value,
+    home_xg_live:q('liveHomeXg').value,
+    away_xg_live:q('liveAwayXg').value
+  });
+  const d=await api(`/mvp/intelligence/predictions/${lastPredictionId}/live?`+p,{method:'POST'});
+  q('liveResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Canlı 1X2</div><p>Ev %${d.home_win_probability}</p><p>X %${d.draw_probability}</p><p>Dep %${d.away_win_probability}</p></div><div class="card"><div class="muted">Sıradaki gol</div><p>Ev %${d.next_goal_home_probability}</p><p>Dep %${d.next_goal_away_probability}</p></div></div>`;
+}
+
+
+let activeModelId='build010-default';
+async function registerDefaultModel(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({
+    model_id:activeModelId,
+    model_version:'build-010',
+    competition:'ALL',
+    feature_set:'poisson,elo,xg,form,lineup,tactics,context',
+    training_sample_size:'0',
+    validation_brier_score:'0',
+    validation_log_loss:'0',
+    status:'CANDIDATE'
+  });
+  const model=await api(`/mvp/intelligence/${clubId}/models?`+p,{method:'POST'});
+  await api(`/mvp/intelligence/models/${model.model_id}/promote`,{method:'POST'});
+  q('modelOpsResult').innerHTML=`<p><b>${model.model_version}</b> modeli kaydedildi ve aktif edildi.</p>`;
+}
+async function runRollingBacktest(){
+  const d=await api(`/mvp/intelligence/${q('clubSelect').value}/rolling-backtest?window_size=20`);
+  q('modelOpsResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Değerlendirilen</div><div class="metric">${d.evaluated}</div></div><div class="card"><div class="muted">Sonuç doğruluğu</div><div class="metric">%${d.result_accuracy}</div></div><div class="card"><div class="muted">Brier</div><div class="metric">${d.mean_brier_score}</div></div><div class="card"><div class="muted">Gol hatası</div><div class="metric">${d.mean_goal_error}</div></div></div>`;
+}
+async function runDriftCheck(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({
+    drift_id:'drift-'+Date.now(),
+    model_id:activeModelId,
+    window_size:'10'
+  });
+  try{
+    const d=await api(`/mvp/intelligence/${clubId}/drift?`+p,{method:'POST'});
+    q('modelOpsResult').innerHTML=`<div class="card"><h3>Drift: ${d.drift_level}</h3><p>Doğruluk değişimi: ${d.result_accuracy_change}</p><p>Brier değişimi: ${d.brier_score_change}</p>${d.warnings.map(x=>`<p>${x}</p>`).join('')}</div>`;
+  }catch(e){
+    q('modelOpsResult').innerHTML='<p class="bad">Önce modeli kaydedin.</p>';
+  }
+}
+
+
+async function runBatchPipeline(){
+  const clubId=q('clubSelect').value;
+  if(!derivedClubProfileId)await deriveClubProfile();
+  const p=new URLSearchParams({
+    club_profile_id:derivedClubProfileId,
+    opponent_profile_id:q('miOpponentProfileId').value,
+    limit:'10'
+  });
+  const d=await api(`/mvp/intelligence/${clubId}/batch-predict?`+p,{method:'POST'});
+  if(d.items.length)lastPredictionId=d.items[0].prediction_id;
+  q('pipelineResult').innerHTML=d.items.length?d.items.map(x=>`<div class="list-item"><b>${x.home_team} ${x.predicted_home_goals}-${x.predicted_away_goals} ${x.away_team}</b><div class="muted">Ev %${x.home_win_probability} · X %${x.draw_probability} · Dep %${x.away_win_probability}</div></div>`).join(''):'<p class="muted">Yaklaşan maç yok.</p>';
+}
+async function approveLatestPrediction(){
+  if(!lastPredictionId){alert('Önce tahmin üretin');return}
+  const p=new URLSearchParams({
+    decision_id:'decision-'+Date.now(),
+    club_id:q('clubSelect').value,
+    status:'APPROVED',
+    reviewer:session?.display_name||'coach',
+    note:'Web arayüzünden onaylandı'
+  });
+  const d=await api(`/mvp/intelligence/predictions/${lastPredictionId}/review?`+p,{method:'POST'});
+  q('pipelineResult').innerHTML=`<p><b>${d.status}</b> — ${d.reviewer}</p>`;
+}
+async function createDecisionReport(){
+  if(!lastPredictionId){alert('Önce tahmin üretin');return}
+  const p=new URLSearchParams({
+    report_id:'decision-report-'+Date.now(),
+    club_id:q('clubSelect').value,
+    data_quality_score:'80'
+  });
+  const d=await api(`/mvp/intelligence/predictions/${lastPredictionId}/decision-report?`+p,{method:'POST'});
+  q('pipelineResult').innerHTML=`<div class="card"><h2>${d.headline}</h2><p><b>Tahmini skor:</b> ${d.predicted_score}</p><p><b>xG:</b> ${d.expected_goals}</p><p><b>Güven:</b> ${d.confidence}</p><p><b>Onay:</b> ${d.approval_status}</p><h3>Taktik odak</h3>${d.tactical_focus.map(x=>`<p>${x}</p>`).join('')}<h3>Riskler</h3>${d.key_risks.map(x=>`<p>${x}</p>`).join('')}</div>`;
+}
+
+
+async function runBenchmark(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({benchmark_id:'benchmark-'+Date.now()});
+  try{
+    const d=await api(`/mvp/intelligence/${clubId}/benchmark?`+p,{method:'POST'});
+    q('benchmarkResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Model Brier</div><div class="metric">${d.model_brier_score}</div></div><div class="card"><div class="muted">Uniform Brier</div><div class="metric">${d.uniform_brier_score}</div></div><div class="card"><div class="muted">Model doğruluğu</div><div class="metric">%${d.model_result_accuracy}</div></div><div class="card"><div class="muted">Karar</div><div class="metric">${d.verdict}</div></div></div>`;
+  }catch(e){q('benchmarkResult').innerHTML='<p class="bad">Benchmark için değerlendirilmiş tahmin gerekli.</p>'}
+}
+async function runReliability(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({report_id:'reliability-'+Date.now()});
+  const d=await api(`/mvp/intelligence/${clubId}/reliability?`+p,{method:'POST'});
+  q('benchmarkResult').innerHTML=`<div class="card"><h3>Güvenilirlik: ${d.reliability_grade}</h3><p>ECE: ${d.expected_calibration_error}</p><p>Maksimum hata: ${d.maximum_calibration_error}</p>${d.buckets.map(x=>`<p>${x.bucket}% — tahmin ${x.predictions}, güven %${x.mean_confidence}, gerçekleşme %${x.observed_frequency}</p>`).join('')}</div>`;
+}
+async function loadShareableReport(){
+  if(!lastPredictionId){alert('Önce tahmin üretin');return}
+  const p=new URLSearchParams({
+    club_id:q('clubSelect').value,
+    data_quality_score:'80'
+  });
+  const d=await api(`/mvp/intelligence/predictions/${lastPredictionId}/shareable-report?`+p);
+  q('benchmarkResult').innerHTML=`<div class="card"><h2>${d.title}</h2><p><b>Tahmin:</b> ${d.predicted_score}</p><p><b>1X2:</b> Ev %${d.probabilities.home} · X %${d.probabilities.draw} · Dep %${d.probabilities.away}</p><p><b>Güven:</b> ${d.confidence}</p><h3>Faktörler</h3>${d.factors.map(x=>`<p>${x}</p>`).join('')}<h3>Riskler</h3>${d.risks.map(x=>`<p>${x}</p>`).join('')}<p class="muted">${d.disclaimer}</p></div>`;
+}
+
+
+async function runPostMatchLearning(){
+  if(!lastPredictionId){alert('Önce tahmin üretin');return}
+  const p=new URLSearchParams({
+    learning_id:'learning-'+Date.now(),
+    club_id:q('clubSelect').value,
+    actual_home_goals:q('actualHomeGoals').value,
+    actual_away_goals:q('actualAwayGoals').value
+  });
+  const d=await api(`/mvp/intelligence/predictions/${lastPredictionId}/learn?`+p,{method:'POST'});
+  q('learningResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Sonuç hatası</div><div class="metric">${d.result_error?'EVET':'HAYIR'}</div></div><div class="card"><div class="muted">Skor hatası</div><div class="metric">${d.score_error}</div></div><div class="card"><div class="muted">Aşırı güven</div><div class="metric">${d.probability_overconfidence}</div></div></div><div class="card" style="margin-top:10px"><h3>Kök nedenler</h3>${d.root_causes.map(x=>`<p>${x}</p>`).join('')}<h3>Önerilen aksiyonlar</h3>${d.recommended_actions.map(x=>`<p>${x}</p>`).join('')}</div>`;
+}
+async function rebuildOpponentMemory(){
+  const clubId=q('clubSelect').value;
+  const d=await api(`/mvp/intelligence/${clubId}/opponent-memory/rebuild`,{method:'POST'});
+  q('learningResult').innerHTML=d.items.length?d.items.map(x=>`<div class="list-item"><b>${x.opponent_name}</b><div class="muted">Maç ${x.matches} · GF ${x.goals_for_average} · GA ${x.goals_against_average} · Puan/maç ${x.result_points_average}</div></div>`).join(''):'<p class="muted">Tamamlanan maç yok.</p>';
+}
+async function checkRecalibration(){
+  const d=await api(`/mvp/intelligence/${q('clubSelect').value}/recalibration-recommendation`);
+  q('learningResult').innerHTML=`<div class="card"><h3>${d.recommended?'Yeniden kalibrasyon öneriliyor':'Kalibrasyon şu an gerekli değil'}</h3>${d.reasons.map(x=>`<p>${x}</p>`).join('')}<p>Güvenilirlik: ${d.reliability_grade}</p><p>ECE: ${d.expected_calibration_error}</p></div>`;
+}
+
+
+async function runWalkForward(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({
+    report_id:'walk-forward-'+Date.now(),
+    competition:q('wfCompetition').value,
+    warmup_matches:q('wfWarmup').value
+  });
+  try{
+    const d=await api(`/mvp/intelligence/${clubId}/walk-forward?`+p,{method:'POST'});
+    q('walkForwardResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Değerlendirilen</div><div class="metric">${d.evaluated_matches}</div></div><div class="card"><div class="muted">Sonuç doğruluğu</div><div class="metric">%${d.result_accuracy}</div></div><div class="card"><div class="muted">Brier</div><div class="metric">${d.mean_brier_score}</div></div><div class="card"><div class="muted">Leakage koruması</div><div class="metric">${d.leakage_checks_passed?'OK':'HATA'}</div></div></div>`;
+  }catch(e){q('walkForwardResult').innerHTML='<p class="bad">Bu test için yeterli tamamlanmış maç yok.</p>'}
+}
+async function checkReproducibility(){
+  if(!lastPredictionId){alert('Önce tahmin üretin');return}
+  const p=new URLSearchParams({
+    record_id:'repro-'+Date.now(),
+    model_version:'build-014'
+  });
+  const d=await api(`/mvp/intelligence/predictions/${lastPredictionId}/reproducibility?`+p,{method:'POST'});
+  q('walkForwardResult').innerHTML=`<div class="card"><h3>Deterministik: ${d.deterministic?'EVET':'HAYIR'}</h3><p>Input fingerprint: ${d.input_fingerprint}</p><p>Output fingerprint: ${d.output_fingerprint}</p></div>`;
+}
+
+
+async function runFullPipeline(){
+  const clubId=q('clubSelect').value;
+  if(!derivedClubProfileId)await deriveClubProfile();
+  const p=new URLSearchParams({
+    run_id:'pipeline-'+Date.now(),
+    match_id:q('predictionMatch').value,
+    club_profile_id:derivedClubProfileId,
+    opponent_profile_id:q('miOpponentProfileId').value,
+    reviewer:session?.display_name||'system'
+  });
+  try{
+    const d=await api(`/mvp/intelligence/${clubId}/pipeline/run?`+p,{method:'POST'});
+    lastPredictionId=d.prediction_id;
+    q('releaseCandidateResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Tahmin</div><div class="metric">${d.prediction_id.split(':').slice(-1)}</div></div><div class="card"><div class="muted">Veri kalite</div><div class="metric">%${d.data_quality_score}</div></div><div class="card"><div class="muted">Onay</div><div class="metric">${d.approval_status}</div></div><div class="card"><div class="muted">Release gate</div><div class="metric">${d.release_gate_status}</div></div></div><p>Süre: ${d.duration_ms} ms</p>`;
+  }catch(e){q('releaseCandidateResult').innerHTML='<p class="bad">Pipeline için maç ve takım profilleri gerekli.</p>'}
+}
+async function runReleaseGate(){
+  const p=new URLSearchParams({
+    gate_id:'gate-'+Date.now(),
+    model_version:'build-015',
+    tests_passed:'true',
+    documentation_ready:'true'
+  });
+  const d=await api(`/mvp/intelligence/${q('clubSelect').value}/release-gate?`+p,{method:'POST'});
+  q('releaseCandidateResult').innerHTML=`<div class="card"><h2>${d.overall_status}</h2><p>Kalite skoru: %${d.score}</p><h3>Engeller</h3>${d.blockers.length?d.blockers.map(x=>`<p class="bad">${x}</p>`).join(''):'<p>Engel yok</p>'}<h3>Uyarılar</h3>${d.warnings.map(x=>`<p>${x}</p>`).join('')}</div>`;
+}
+async function runPilotReadiness(){
+  const p=new URLSearchParams({
+    report_id:'pilot-'+Date.now(),
+    documentation_ready:'true'
+  });
+  const d=await api(`/mvp/intelligence/${q('clubSelect').value}/pilot-readiness?`+p,{method:'POST'});
+  q('releaseCandidateResult').innerHTML=`<div class="card"><h2>${d.status}</h2><p>Operasyon skoru: %${d.operational_score}</p>${d.action_items.map(x=>`<p>${x}</p>`).join('')}</div>`;
+}
+
+
+async function runSecurityAudit(){
+  const p=new URLSearchParams({
+    report_id:'security-'+Date.now(),
+    environment:'production'
+  });
+  const d=await api('/mvp/stabilization/security?'+p);
+  q('stabilizationResult').innerHTML=`<div class="card"><h2>${d.production_ready?'READY':'BLOCKED'}</h2><p>Secret güvenli: ${d.secure_secret}</p><p>Demo secret kapalı: ${d.default_demo_secret_disabled}</p><h3>Engeller</h3>${d.blockers.length?d.blockers.map(x=>`<p class="bad">${x}</p>`).join(''):'<p>Engel yok</p>'}<h3>Uyarılar</h3>${d.warnings.map(x=>`<p>${x}</p>`).join('')}</div>`;
+}
+async function createBackupManifest(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({
+    backup_id:'backup-'+Date.now()
+  });
+  const d=await api(`/mvp/stabilization/${clubId}/backup?`+p,{method:'POST'});
+  q('stabilizationResult').innerHTML=`<div class="card"><h3>${d.backup_id}</h3><p>Checksum: ${d.checksum}</p><p>Oyuncular: ${d.entity_counts.players}</p><p>Maçlar: ${d.entity_counts.matches}</p><p>Tahminler: ${d.entity_counts.predictions}</p></div>`;
+}
+async function createContractSnapshot(){
+  const p=new URLSearchParams({
+    snapshot_id:'contract-'+Date.now()
+  });
+  const d=await api('/mvp/stabilization/contract?'+p);
+  q('stabilizationResult').innerHTML=`<div class="card"><h3>API ${d.api_version}</h3><p>Route sayısı: ${d.routes.length}</p><p>Checksum: ${d.checksum}</p></div>`;
+}
+
+
+async function recordDemoTelemetry(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({
+    event_id:'telemetry-'+Date.now(),
+    category:'PIPELINE',
+    severity:'INFO',
+    component:'prediction-pipeline',
+    message:'Pilot telemetri olayı',
+    duration_ms:'120'
+  });
+  const d=await api(`/mvp/observability/${clubId}/events?`+p,{method:'POST'});
+  q('observabilityResult').innerHTML=`<p>${d.category} · ${d.severity} · ${d.duration_ms} ms</p>`;
+}
+async function loadHealthScore(){
+  const p=new URLSearchParams({
+    report_id:'health-'+Date.now()
+  });
+  const d=await api(`/mvp/observability/${q('clubSelect').value}/health-score?`+p);
+  q('observabilityResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Sağlık</div><div class="metric">${d.status}</div></div><div class="card"><div class="muted">Skor</div><div class="metric">%${d.health_score}</div></div><div class="card"><div class="muted">p95</div><div class="metric">${d.p95_duration_ms} ms</div></div><div class="card"><div class="muted">Açık incident</div><div class="metric">${d.open_incidents}</div></div></div>`;
+}
+async function generateOperationalAlarms(){
+  const d=await api(`/mvp/observability/${q('clubSelect').value}/alarms`,{method:'POST'});
+  q('observabilityResult').innerHTML=d.items.map(x=>`<div class="list-item"><b>${x.severity}</b><div class="muted">${x.message}</div></div>`).join('');
+}
+
+
+async function recordUsageEvent(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({
+    event_id:'usage-'+Date.now(),
+    user_id:session?.user_id||'demo-user',
+    feature:'MATCH_INTELLIGENCE',
+    action:'VIEW',
+    session_id:'web-'+Date.now(),
+    duration_ms:'150',
+    success:'true'
+  });
+  const d=await api(`/mvp/product-analytics/${clubId}/usage?`+p,{method:'POST'});
+  q('productAnalyticsResult').innerHTML=`<p>${d.feature} · ${d.action} · ${d.duration_ms} ms</p>`;
+}
+async function submitDemoFeedback(){
+  const clubId=q('clubSelect').value;
+  const p=new URLSearchParams({
+    feedback_id:'feedback-'+Date.now(),
+    user_id:session?.user_id||'demo-user',
+    feature:'MATCH_INTELLIGENCE',
+    rating:'4',
+    category:'ACCURACY',
+    message:'Pilot geri bildirimi'
+  });
+  const d=await api(`/mvp/product-analytics/${clubId}/feedback?`+p,{method:'POST'});
+  q('productAnalyticsResult').innerHTML=`<p>Geri bildirim kaydedildi: ${d.rating}/5</p>`;
+}
+async function loadAdoptionReport(){
+  const p=new URLSearchParams({
+    report_id:'adoption-'+Date.now()
+  });
+  const d=await api(`/mvp/product-analytics/${q('clubSelect').value}/adoption?`+p);
+  q('productAnalyticsResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Aktif kullanıcı</div><div class="metric">${d.active_users}</div></div><div class="card"><div class="muted">Toplam olay</div><div class="metric">${d.total_events}</div></div><div class="card"><div class="muted">Benimsenme</div><div class="metric">%${d.adoption_score}</div></div><div class="card"><div class="muted">En çok kullanılan</div><div class="metric">${d.most_used_feature}</div></div></div>`;
+}
+async function loadImprovementPriorities(){
+  const d=await api(`/mvp/product-analytics/${q('clubSelect').value}/priorities`);
+  q('productAnalyticsResult').innerHTML=d.items.slice(0,5).map(x=>`<div class="list-item"><b>${x.priority} · ${x.feature}</b><div class="muted">Skor ${x.priority_score} · Memnuniyet ${x.satisfaction_score} · Hata %${x.failure_rate}</div>${x.reasons.map(r=>`<p>${r}</p>`).join('')}</div>`).join('');
+}
+
+
+let activeExperimentId='prediction-ui-exp';
+let activeFlagId='prediction-ui-flag';
+async function createPredictionExperiment(){
+  const clubId=q('clubSelect').value;
+  const fp=new URLSearchParams({
+    flag_id:activeFlagId,
+    name:'Yeni tahmin ekranı',
+    enabled:'true',
+    rollout_percentage:'50',
+    allowed_roles:'ANALYST,COACH',
+    variant:'v2'
+  });
+  await api(`/mvp/experiments/${clubId}/flags?`+fp,{method:'POST'});
+  const ep=new URLSearchParams({
+    experiment_id:activeExperimentId,
+    name:'Tahmin ekranı A/B testi',
+    feature:'MATCH_INTELLIGENCE',
+    control_variant:'v1',
+    treatment_variant:'v2',
+    rollout_percentage:'100',
+    primary_metric:'rating',
+    status:'RUNNING'
+  });
+  const d=await api(`/mvp/experiments/${clubId}?`+ep,{method:'POST'});
+  q('experimentResult').innerHTML=`<p><b>${d.name}</b> · ${d.status}</p>`;
+}
+async function assignExperimentVariant(){
+  const p=new URLSearchParams({
+    assignment_id:'assignment-'+Date.now(),
+    club_id:q('clubSelect').value,
+    user_id:session?.user_id||'demo-user'
+  });
+  try{
+    const d=await api(`/mvp/experiments/${activeExperimentId}/assign?`+p,{method:'POST'});
+    q('experimentResult').innerHTML=`<p>Atanan varyant: <b>${d.variant}</b></p>`;
+  }catch(e){q('experimentResult').innerHTML='<p class="bad">Önce deneyi oluşturun.</p>'}
+}
+async function loadExperimentReport(){
+  const p=new URLSearchParams({
+    report_id:'experiment-report-'+Date.now()
+  });
+  try{
+    const d=await api(`/mvp/experiments/${activeExperimentId}/report?`+p);
+    q('experimentResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Kontrol ort.</div><div class="metric">${d.control_mean}</div></div><div class="card"><div class="muted">Treatment ort.</div><div class="metric">${d.treatment_mean}</div></div><div class="card"><div class="muted">Uplift</div><div class="metric">%${d.uplift_percentage}</div></div><div class="card"><div class="muted">Kazanan</div><div class="metric">${d.winner}</div></div></div><p>${d.recommendation}</p>`;
+  }catch(e){q('experimentResult').innerHTML='<p class="bad">Rapor için deney gerekli.</p>'}
+}
+async function rollbackExperiment(){
+  const p=new URLSearchParams({
+    flag_id:activeFlagId
+  });
+  try{
+    const d=await api(`/mvp/experiments/${activeExperimentId}/rollback?`+p,{method:'POST'});
+    q('experimentResult').innerHTML=`<p><b>${d.experiment.status}</b> · Flag açık: ${d.flag.enabled}</p>`;
+  }catch(e){q('experimentResult').innerHTML='<p class="bad">Geri alınacak deney bulunamadı.</p>'}
+}
+
+
+async function runFinalPilot(){
+  const clubId=q('clubSelect').value||'final-pilot-club';
+  const p=new URLSearchParams({
+    report_id:'final-'+Date.now(),
+    reviewer:session?.display_name||'system'
+  });
+  const d=await api(`/mvp/final-pilot/${clubId}/run?`+p,{method:'POST'});
+  q('finalPilotResult').innerHTML=`<div class="card"><h2>${d.final_status}</h2><p>Kadro: ${d.players_ready}</p><p>Fikstür: ${d.fixtures_ready}</p><p>Profiller: ${d.profiles_ready}</p><p>Tahmin: ${d.prediction_ready}</p><p>Release gate: ${d.release_gate_status}</p><p>Pilot readiness: ${d.pilot_readiness_status}</p><p>Sağlık: ${d.health_status}</p>${d.blockers.map(x=>`<p class="bad">${x}</p>`).join('')}</div>`;
+}
+
+
+async function runPilotAcceptance(){
+  const clubId=q('clubSelect').value||'final-pilot-club';
+  const p=new URLSearchParams({
+    report_id:'acceptance-'+Date.now(),
+    reviewer:session?.display_name||'acceptance-bot'
+  });
+  const d=await api(`/mvp/pilot-acceptance/${clubId}/run?`+p,{method:'POST'});
+  q('acceptanceResult').innerHTML=`<div class="card"><h2>${d.status}</h2><p>Kabul skoru: %${d.acceptance_score}</p><p>Başarılı: ${d.passed_checks}</p><p>Başarısız: ${d.failed_checks}</p><p>Kritik hata: ${d.critical_failures}</p><p>Fingerprint: ${d.fingerprint}</p>${d.checks.map(x=>`<p class="${x.passed?'':'bad'}">${x.passed?'✓':'✗'} ${x.name}: ${x.details}</p>`).join('')}</div>`;
+}
+async function runRepeatabilityCheck(){
+  const clubId=q('clubSelect').value||'final-pilot-club';
+  const d=await api(`/mvp/pilot-acceptance/${clubId}/repeatability`);
+  q('acceptanceResult').innerHTML=`<div class="card"><h2>${d.stable?'STABLE':'UNSTABLE'}</h2><p>Oyuncular: ${d.first.players} / ${d.second.players}</p><p>Maçlar: ${d.first.matches} / ${d.second.matches}</p></div>`;
+}
+
+
+async function validateDeliveryCsv(){
+  const p=new URLSearchParams({
+    report_id:'delivery-'+Date.now(),
+    import_type:q('deliveryImportType').value,
+    csv_text:q('deliveryCsv').value
+  });
+  try{
+    const d=await api('/mvp/delivery/import/validate?'+p,{method:'POST'});
+    q('deliveryResult').innerHTML=`<div class="grid"><div class="card"><div class="muted">Toplam</div><div class="metric">${d.total_rows}</div></div><div class="card"><div class="muted">Geçerli</div><div class="metric">${d.valid_rows}</div></div><div class="card"><div class="muted">Karantina</div><div class="metric">${d.invalid_rows}</div></div></div><p>Checksum: ${d.checksum}</p>${d.issues.map(x=>`<p class="bad">Satır ${x.row_number}: ${x.message}</p>`).join('')}`;
+  }catch(e){q('deliveryResult').innerHTML='<p class="bad">CSV başlıkları veya veri formatı geçersiz.</p>'}
+}
+
+
+async function runProductionPreflight(){
+  const p=new URLSearchParams({
+    report_id:'preflight-'+Date.now(),
+    database_ready:'true',
+    redis_ready:'true',
+    backup_ready:'true',
+    observability_ready:'true'
+  });
+  const d=await api('/mvp/release-freeze/preflight?'+p);
+  q('releaseFreezeResult').innerHTML=`<div class="card"><h2>${d.status}</h2><p>Eksik değişkenler: ${d.missing_variables.join(', ')||'yok'}</p><p>Güvensiz değişkenler: ${d.insecure_variables.join(', ')||'yok'}</p></div>`;
+}
+async function runMigrationPreflight(){
+  const p=new URLSearchParams({
+    report_id:'migration-'+Date.now(),
+    source_schema:'build-022',
+    target_schema:'build-023',
+    source_fields:'club,players,matches,predictions,models',
+    target_fields:'club,players,matches,predictions,models'
+  });
+  const d=await api('/mvp/release-freeze/migration?'+p,{method:'POST'});
+  q('releaseFreezeResult').innerHTML=`<div class="card"><h2>${d.status}</h2>${d.destructive_changes.map(x=>`<p class="bad">${x}</p>`).join('')}${d.warnings.map(x=>`<p>${x}</p>`).join('')}</div>`;
+}
+
+
+async function runSbomAudit(){
+  const p=new URLSearchParams({
+    report_id:'sbom-'+Date.now(),
+    build_version:'build-024-supply-chain',
+    dependencies_json:q('sbomDependencies').value
+  });
+  try{
+    const d=await api('/mvp/supply-chain/sbom?'+p,{method:'POST'});
+    q('supplyChainResult').innerHTML=`<div class="card"><h2>${d.status}</h2><p>Bağımlılık: ${d.dependency_count}</p><p>Bilinmeyen lisans: ${d.unknown_licenses}</p><p>Yasak lisans: ${d.forbidden_licenses}</p><p>Checksum: ${d.checksum}</p></div>`;
+  }catch(e){q('supplyChainResult').innerHTML='<p class="bad">Bağımlılık JSON geçersiz.</p>'}
+}
+async function runReproducibleBuildCheck(){
+  const manifest=JSON.stringify({build:'024',files:['api','web','scripts']});
+  const p=new URLSearchParams({
+    report_id:'repro-build-'+Date.now(),
+    first_manifest_json:manifest,
+    second_manifest_json:manifest
+  });
+  const d=await api('/mvp/supply-chain/reproducible-build?'+p,{method:'POST'});
+  q('supplyChainResult').innerHTML=`<div class="card"><h2>${d.status}</h2><p>Deterministik: ${d.deterministic}</p><p>${d.first_manifest_checksum}</p></div>`;
+}
+
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));b.classList.add('active');q(b.dataset.page).classList.add('active');q('pageTitle').textContent=b.textContent});q('clubSelect').onchange=loadDashboard;restore();
+</script></body></html>

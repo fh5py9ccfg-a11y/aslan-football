@@ -1,0 +1,11 @@
+{
+  "release_id": "aslan-11.0.0-rc.1",
+  "version": "11.0.0-rc.1",
+  "channel": "rc",
+  "build_id": "local-build",
+  "source_revision": "unknown",
+  "schema_version": "11.0",
+  "minimum_rollback_version": "10.48.0",
+  "generated_at": 1785653997,
+  "manifest_sha256": "6824909b7f5e92a82af7514e422778bdf590e5d4dc02bf28357a95c4150282f5"
+}

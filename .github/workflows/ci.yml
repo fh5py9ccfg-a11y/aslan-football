@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .[dev]
+      - run: pytest -q -m "not integration"
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build api postgres redis outbox-worker event-consumer
+      - run: RUN_CONTAINER_INTEGRATION=1 docker compose -f docker-compose.yml -f docker-compose.integration.yml run --rm integration-tests
+      - if: always()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down -v

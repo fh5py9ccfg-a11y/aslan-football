@@ -1,0 +1,9 @@
+{
+  "version": "7.0-rc1",
+  "tests_passed": 259,
+  "final_release_blockers": [
+    "real Sportmonks API smoke test",
+    "live fixture verification",
+    "production environment readiness check"
+  ]
+}

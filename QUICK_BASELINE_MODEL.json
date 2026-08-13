@@ -1,0 +1,13 @@
+{
+  "model_id": "quick-baseline",
+  "competition": "Pilot Lig",
+  "sample_size": 40,
+  "home_goal_rate": 1.4,
+  "away_goal_rate": 1.0667,
+  "home_advantage": 1.3125,
+  "elo_weight": 0.05,
+  "xg_weight": 0.8,
+  "validation_accuracy": 40.0,
+  "validation_brier_score": 0.7882,
+  "generated_at": 1785838896
+}

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aslan-ozaslan-platform"
+version = "10.0.0a1"
+description = "Aslan Özaslan Football Intelligence Platform MVP"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1",
+  "pydantic>=2.8,<3",
+  "sqlalchemy>=2.0,<3",
+  "psycopg[binary]>=3.2,<4",
+  "redis>=5,<6",
+  "httpx>=0.27,<1",
+  "alembic>=1.13,<2",
+  "cryptography>=42,<46",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "packages/football_core/src",
+  "apps/api",
+]
+testpaths = [
+  "packages/football_core/tests",
+  "apps/api/tests",
+  "apps/worker/tests",
+]
+
+markers = ["integration: container-backed integration tests"]

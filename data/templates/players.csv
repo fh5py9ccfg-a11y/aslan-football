@@ -1,0 +1,19 @@
+player_id,name,position,age,market_value
+p01,Kaleci 1,GK,27,4.5
+p02,Sağ Bek,RB,25,3.8
+p03,Stoper 1,CB,28,5.2
+p04,Stoper 2,CB,24,4.8
+p05,Sol Bek,LB,26,4.1
+p06,Ön Libero,DM,27,5.0
+p07,Merkez Orta Saha,CM,25,6.2
+p08,On Numara,AM,24,7.0
+p09,Sağ Kanat,RW,23,6.5
+p10,Sol Kanat,LW,22,6.8
+p11,Santrafor,ST,27,8.5
+p12,Yedek Kaleci,GK,23,1.5
+p13,Yedek Stoper,CB,22,2.0
+p14,Yedek Orta Saha,CM,21,2.4
+p15,Yedek Forvet,ST,24,3.0
+p16,Yedek Kanat,RW,20,2.1
+p17,Yedek Bek,LB,21,1.9
+p18,Yedek Ön Libero,DM,23,2.2
