@@ -11,6 +11,9 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
+
+from .disaster_recovery import RedisDisasterRecoveryRepository
+from .dr_coordinator import DisasterRecoveryCoordinator
 from fastapi.responses import PlainTextResponse
 from football_core import MatchEvent, MatchStateService
 
