@@ -34,3 +34,7 @@ testpaths = [
 ]
 
 markers = ["integration: container-backed integration tests"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["apps*", "packages*"]
+exclude = ["migrations*", "tests*"]
