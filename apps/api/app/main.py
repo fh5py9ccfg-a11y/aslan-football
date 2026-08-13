@@ -14,6 +14,7 @@ from fastapi import (
 
 from .disaster_recovery import RedisDisasterRecoveryRepository
 from .dr_coordinator import DisasterRecoveryCoordinator
+from .session_maintenance import SessionMaintenanceWorker
 from fastapi.responses import PlainTextResponse
 from football_core import MatchEvent, MatchStateService
 
