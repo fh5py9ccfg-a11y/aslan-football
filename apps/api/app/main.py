@@ -17,7 +17,7 @@ from .dr_coordinator import DisasterRecoveryCoordinator
 from .session_maintenance import SessionMaintenanceWorker
 from .session_maintenance import RedisSessionIndexMaintainer
 from .distributed_lease import RedisLease
-from .compensation import RedisCompensation
+from .compensation import RedisCompensationRepository
 from fastapi.responses import PlainTextResponse
 from football_core import MatchEvent, MatchStateService
 
