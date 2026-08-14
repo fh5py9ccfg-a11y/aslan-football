@@ -1,4 +1,5 @@
 import json
+import logging
 from pydantic import BaseModel
 from pathlib import Path
 from fastapi.responses import FileResponse, StreamingResponse
@@ -11,6 +12,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
+logger = logging.getLogger(__name__)
 
 from .disaster_recovery import RedisDisasterRecoveryRepository
 from .dr_coordinator import DisasterRecoveryCoordinator
