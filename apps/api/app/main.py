@@ -27,6 +27,7 @@ from .compensation_outbox_publisher import RedisOutboxDeliveryRepository
 from .outbox_receipts import RedisPublishReceiptRepository
 from .transport_circuit_breaker import RedisCircuitBreaker
 from .outbox_transport import build_outbox_transport
+from .event_ordering import RedisEventOrderingRepository
 from fastapi.responses import PlainTextResponse
 from football_core import MatchEvent, MatchStateService
 
