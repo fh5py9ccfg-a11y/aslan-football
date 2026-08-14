@@ -19,6 +19,8 @@ from .session_maintenance import RedisSessionIndexMaintainer
 from .distributed_lease import RedisLease
 from .compensation import RedisCompensationRepository
 from .compensation_orchestrator import CompensationHandlerRegistry
+from .compensation_execution import RedisCompensationExecutionRepository
+from .compensation_outbox import RedisCompensationCommitter
 from fastapi.responses import PlainTextResponse
 from football_core import MatchEvent, MatchStateService
 
