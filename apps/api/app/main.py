@@ -20,7 +20,7 @@ from .session_maintenance import SessionMaintenanceWorker
 from .session_maintenance import RedisSessionIndexMaintainer
 from .distributed_lease import RedisLease
 from .compensation import RedisCompensationRepository
-from .compensation_orchestrator import CompensationHandlerRegistry, CompensationOrchestrator
+from .compensation_orchestrator import CompensationHandlerRegistry, CompensationOrchestrator, CompensationWorker
 from .compensation_execution import RedisCompensationExecutionRepository
 from .compensation_outbox import RedisCompensationCommitter
 from .compensation_outbox_publisher import RedisOutboxDeliveryRepository
