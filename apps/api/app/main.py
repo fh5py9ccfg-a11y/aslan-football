@@ -21,6 +21,7 @@ from .compensation import RedisCompensationRepository
 from .compensation_orchestrator import CompensationHandlerRegistry
 from .compensation_execution import RedisCompensationExecutionRepository
 from .compensation_outbox import RedisCompensationCommitter
+from .compensation_outbox_publisher import RedisOutboxDeliveryRepository
 from fastapi.responses import PlainTextResponse
 from football_core import MatchEvent, MatchStateService
 
