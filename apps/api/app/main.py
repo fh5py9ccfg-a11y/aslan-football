@@ -30,6 +30,7 @@ from .outbox_transport import build_outbox_transport
 from .event_ordering import RedisEventOrderingRepository
 from .compensation_outbox_publisher import OutboxPublisherWorker, CompensationOutboxPublisher
 from .idempotent_closure import IdempotentClosureExecutor
+from .idempotent_effects import RedisIdempotentEffectRepository
 from fastapi.responses import PlainTextResponse
 from football_core import MatchEvent, MatchStateService
 
