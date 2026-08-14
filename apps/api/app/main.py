@@ -23,6 +23,7 @@ from .compensation_execution import RedisCompensationExecutionRepository
 from .compensation_outbox import RedisCompensationCommitter
 from .compensation_outbox_publisher import RedisOutboxDeliveryRepository
 from .outbox_receipts import RedisPublishReceiptRepository
+from .transport_circuit_breaker import RedisCircuitBreaker
 from fastapi.responses import PlainTextResponse
 from football_core import MatchEvent, MatchStateService
 
