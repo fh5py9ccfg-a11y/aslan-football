@@ -116,3 +116,4 @@ class FixtureModel(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
+    )
