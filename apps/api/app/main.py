@@ -1,5 +1,9 @@
 import json
 import logging
+
+from sqlalchemy import text
+from .db import SessionLoca
+
 from pydantic import BaseModel
 from pathlib import Path
 from fastapi.responses import FileResponse, StreamingResponse
@@ -10520,3 +10524,30 @@ async def fixture_stream(
             fixture_id,
             websocket,
         )
+
+@app.get("/fixtures")
+def list_fixtures():
+    with SessionLocal() as session:
+        rows = session.execute(
+            text(
+                """
+                SELECT
+                    fixture_id,
+                    provider,
+                    provider_fixture_id,
+                    league_name,
+                    home_team,
+                    away_team,
+                    kickoff_at,
+                    status
+                FROM fixtures
+                ORDER BY kickoff_at ASC
+                LIMIT 100
+                """
+            )
+        ).mappings().all()
+
+    return {
+        "count": len(rows),
+        "fixtures": [dict(row) for row in rows],
+    }
