@@ -2,7 +2,7 @@ import json
 import logging
 
 from sqlalchemy import text
-from .db import SessionLoca
+from .db import SessionLocal
 
 from pydantic import BaseModel
 from pathlib import Path
