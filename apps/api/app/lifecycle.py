@@ -43,6 +43,9 @@ def _env_bool(name: str, default: bool = True) -> bool:
 
 def _log_comeback_startup_diagnostic() -> None:
     """Emit one compact, failure-tolerant startup line for Render logs."""
+    environment = os.getenv("ENVIRONMENT", os.getenv("APP_ENV", "")).strip().lower()
+    if environment == "test" or os.getenv("PYTEST_CURRENT_TEST"):
+        return
     if not _env_bool("COMEBACK_STARTUP_DIAGNOSTIC", True):
         return
 
