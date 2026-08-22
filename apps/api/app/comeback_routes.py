@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from .comeback_backtest import run_comeback_backtest
+from .comeback_calibration import calibrate_thresholds
 from .comeback_detector import evaluate_comeback
 from .comeback_fixture_adapter import comeback_data_readiness, load_comeback_fixtures
 from .comeback_scanner import scan_comeback_candidates
@@ -82,6 +83,7 @@ def stored_comeback_candidates(
     alert_threshold: int = Query(default=75, ge=50, le=95),
     min_similar_matches: int = Query(default=20, ge=1, le=500),
     limit: int = Query(default=10, ge=1, le=100),
+    use_calibrated_thresholds: bool = Query(default=True),
 ):
     start = datetime.now(timezone.utc)
     fixtures = load_comeback_fixtures(
@@ -90,15 +92,33 @@ def stored_comeback_candidates(
         limit=2000,
     )
     readiness = comeback_data_readiness(fixtures)
+
+    calibration = None
+    threshold_2_1 = alert_threshold
+    threshold_1_2 = alert_threshold
+    if use_calibrated_thresholds:
+        backtest = run_comeback_backtest(lookback_days=1460, min_matches=100)
+        calibration = calibrate_thresholds(
+            backtest,
+            default_threshold_2_1=alert_threshold,
+            default_threshold_1_2=alert_threshold,
+        )
+        threshold_2_1 = int(calibration["2/1"]["threshold"])
+        threshold_1_2 = int(calibration["1/2"]["threshold"])
+
     items = scan_comeback_candidates(
         fixtures,
         alert_threshold=alert_threshold,
+        threshold_2_1=threshold_2_1,
+        threshold_1_2=threshold_1_2,
         min_similar_matches=min_similar_matches,
         limit=limit,
     )
     return {
         "window_hours": hours,
         "threshold": alert_threshold,
+        "thresholds": {"2/1": threshold_2_1, "1/2": threshold_1_2},
+        "calibration": calibration,
         "readiness": readiness,
         "count": len(items),
         "items": items,
@@ -110,10 +130,14 @@ def comeback_backtest(
     lookback_days: int = Query(default=1460, ge=90, le=3650),
     min_matches: int = Query(default=100, ge=20, le=5000),
 ):
-    return run_comeback_backtest(
+    result = run_comeback_backtest(
         lookback_days=lookback_days,
         min_matches=min_matches,
     )
+    return {
+        **result,
+        "recommended_thresholds": calibrate_thresholds(result),
+    }
 
 
 @router.get("/threshold-guide")
