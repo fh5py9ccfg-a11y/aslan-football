@@ -14,6 +14,7 @@ class ProviderSyncReport:
     fetched: int
     published: int
     failed: int
+    fixture_ids: tuple[str, ...] = ()
 
 
 class SportmonksFixtureSyncService:
@@ -52,6 +53,7 @@ class SportmonksFixtureSyncService:
         include="participants;scores;state;league", max_pages=100,
     ):
         fetched = published = failed = 0
+        synced_fixture_ids: list[str] = []
         async for raw_fixture in self.client.iter_fixtures_between(
             start_date, end_date, include=include, max_pages=max_pages
         ):
@@ -144,7 +146,13 @@ class SportmonksFixtureSyncService:
                     fixture,
                     f"sportmonks:fixture:{fixture_id}",
                 )
+                synced_fixture_ids.append(fixture_id)
                 published += 1
             except Exception:
                 failed += 1
-        return ProviderSyncReport(fetched, published, failed)
+        return ProviderSyncReport(
+            fetched=fetched,
+            published=published,
+            failed=failed,
+            fixture_ids=tuple(synced_fixture_ids),
+        )
