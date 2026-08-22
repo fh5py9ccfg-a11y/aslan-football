@@ -140,6 +140,56 @@ def comeback_backtest(
     }
 
 
+@router.get("/self-check")
+def comeback_self_check(
+    hours: int = Query(default=36, ge=1, le=168),
+    lookback_days: int = Query(default=1460, ge=90, le=3650),
+    min_matches: int = Query(default=100, ge=20, le=5000),
+    limit: int = Query(default=3, ge=1, le=20),
+):
+    start = datetime.now(timezone.utc)
+    fixtures = load_comeback_fixtures(
+        start=start,
+        end=start + timedelta(hours=hours),
+        limit=2000,
+    )
+    readiness = comeback_data_readiness(fixtures)
+    backtest = run_comeback_backtest(
+        lookback_days=lookback_days,
+        min_matches=min_matches,
+    )
+    calibration = calibrate_thresholds(backtest)
+    threshold_2_1 = int(calibration["2/1"]["threshold"])
+    threshold_1_2 = int(calibration["1/2"]["threshold"])
+    items = scan_comeback_candidates(
+        fixtures,
+        alert_threshold=75,
+        threshold_2_1=threshold_2_1,
+        threshold_1_2=threshold_1_2,
+        min_similar_matches=20,
+        limit=limit,
+    )
+    ready = bool(backtest.get("enough_data")) and readiness.get("ready", 0) > 0
+    return {
+        "ready_for_live_use": ready,
+        "window_hours": hours,
+        "backtest": {
+            "eligible_matches": backtest.get("eligible_matches", 0),
+            "minimum_required": backtest.get("minimum_required", min_matches),
+            "enough_data": backtest.get("enough_data", False),
+            "baseline": backtest.get("baseline", {}),
+        },
+        "thresholds": {
+            "2/1": threshold_2_1,
+            "1/2": threshold_1_2,
+        },
+        "calibration": calibration,
+        "readiness": readiness,
+        "candidate_count": len(items),
+        "top_candidates": items,
+    }
+
+
 @router.get("/threshold-guide")
 def comeback_threshold_guide(
     threshold: int = Query(default=75, ge=50, le=95),
