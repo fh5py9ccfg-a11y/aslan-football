@@ -2,9 +2,9 @@ from app.comeback_routes import router as comeback_router
 
 
 def _router_paths() -> list[str]:
-    prefix = comeback_router.prefix.rstrip("/")
+    # FastAPI 0.141 stores the APIRouter prefix in each route path already.
     return [
-        f"{prefix}{path}"
+        path
         for route in comeback_router.routes
         if (path := getattr(route, "path", None)) is not None
     ]
