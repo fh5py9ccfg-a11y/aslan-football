@@ -4,6 +4,7 @@ from dataclasses import dataclass, asdict
 from typing import Iterable, Mapping
 
 from .comeback_detector import ComebackDetector, ComebackInputs
+from .comeback_quality import evaluate_candidate_quality
 
 
 @dataclass(frozen=True)
@@ -14,6 +15,9 @@ class ComebackCandidate:
     kickoff: str | None
     preferred_market: str
     score: int
+    quality_score: int
+    quality_label: str
+    evidence_score: int
     turnaround_potential: int
     score_2_1: int
     score_1_2: int
@@ -26,15 +30,6 @@ class ComebackCandidate:
 
 
 class ComebackScanner:
-    """Ranks fixture payloads using the HT/FT comeback detector.
-
-    Expected fixture keys:
-      fixture_id, home_team, away_team, kickoff and either a nested
-      ``comeback_inputs`` mapping or the ComebackInputs fields at top level.
-
-    Fixtures without enough data are skipped rather than guessed.
-    """
-
     REQUIRED = {
         "home_win_probability",
         "draw_probability",
@@ -52,17 +47,11 @@ class ComebackScanner:
 
     def scan(self, fixtures: Iterable[Mapping[str, object]], *, limit: int = 10) -> list[dict]:
         candidates: list[ComebackCandidate] = []
-
         for fixture in fixtures:
             raw_inputs = fixture.get("comeback_inputs")
-            if isinstance(raw_inputs, Mapping):
-                payload = dict(raw_inputs)
-            else:
-                payload = dict(fixture)
-
+            payload = dict(raw_inputs) if isinstance(raw_inputs, Mapping) else dict(fixture)
             if not self.REQUIRED.issubset(payload):
                 continue
-
             try:
                 inputs = ComebackInputs(**{
                     field: payload[field]
@@ -72,11 +61,12 @@ class ComebackScanner:
                 signal = self.detector.evaluate(inputs)
             except (TypeError, ValueError):
                 continue
-
             if signal.preferred_market is None:
                 continue
 
             score = signal.score_2_1 if signal.preferred_market == "2/1" else signal.score_1_2
+            signal_dict = signal.as_dict()
+            quality = evaluate_candidate_quality(fixture, signal_dict)
             candidates.append(
                 ComebackCandidate(
                     fixture_id=str(fixture.get("fixture_id") or fixture.get("id") or ""),
@@ -85,17 +75,20 @@ class ComebackScanner:
                     kickoff=(str(fixture.get("kickoff")) if fixture.get("kickoff") is not None else None),
                     preferred_market=signal.preferred_market,
                     score=score,
+                    quality_score=quality.quality_score,
+                    quality_label=quality.label,
+                    evidence_score=quality.evidence_score,
                     turnaround_potential=signal.turnaround_potential,
                     score_2_1=signal.score_2_1,
                     score_1_2=signal.score_1_2,
                     label=signal.label,
-                    reasons=signal.reasons,
+                    reasons=tuple(signal.reasons) + tuple(quality.reasons),
                     warnings=signal.warnings,
                 )
             )
 
         candidates.sort(
-            key=lambda item: (item.score, item.turnaround_potential),
+            key=lambda item: (item.quality_score, item.score, item.turnaround_potential),
             reverse=True,
         )
         return [item.as_dict() for item in candidates[: max(1, int(limit))]]
