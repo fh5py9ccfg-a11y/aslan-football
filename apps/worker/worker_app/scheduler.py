@@ -1,7 +1,10 @@
 from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+TR = ZoneInfo("Europe/Istanbul")
 
 @dataclass(frozen=True)
 class SchedulerRunReport:
@@ -22,10 +25,11 @@ class ProviderScheduler:
         self.fixture_ids_provider = fixture_ids_provider
 
     async def run_once(self) -> SchedulerRunReport:
-        today = date.today()
+        today_tr = datetime.now(TR).date()
         fixture_report = await self.fixture_sync.sync_between(
-            start_date=today.isoformat(),
-            end_date=(today + timedelta(days=1)).isoformat(),
+            start_date=(today_tr - timedelta(days=1)).isoformat(),
+            end_date=(today_tr + timedelta(days=1)).isoformat(),
+            max_pages=250,
         )
 
         configured_ids = await self.fixture_ids_provider()
@@ -36,8 +40,11 @@ class ProviderScheduler:
 
         event_sync_count = 0
         for fixture_id in fixture_ids:
-            await self.event_sync.sync_fixture(fixture_id)
-            event_sync_count += 1
+            try:
+                await self.event_sync.sync_fixture(fixture_id)
+                event_sync_count += 1
+            except Exception:
+                continue
 
         return SchedulerRunReport(
             fixture_sync_fetched=fixture_report.fetched,
@@ -49,5 +56,8 @@ class ProviderScheduler:
         if interval_seconds <= 0:
             raise ValueError("interval_seconds pozitif olmalıdır")
         while True:
-            await self.run_once()
+            try:
+                await self.run_once()
+            except Exception:
+                pass
             await asyncio.sleep(interval_seconds)
