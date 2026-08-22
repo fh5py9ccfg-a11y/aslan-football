@@ -33,8 +33,10 @@ def test_maps_direct_htft_reversal_probabilities_when_present():
     ]
     result = sportmonks_predictions_to_comeback_inputs(items)
 
-    assert result["historical_2_1_rate"] == 0.085
-    assert result["historical_1_2_rate"] == 0.0625
+    assert result["direct_2_1_probability"] == 0.085
+    assert result["direct_1_2_probability"] == 0.0625
+    assert "historical_2_1_rate" not in result
+    assert "historical_1_2_rate" not in result
 
 
 def test_missing_prediction_types_do_not_invent_fields():
