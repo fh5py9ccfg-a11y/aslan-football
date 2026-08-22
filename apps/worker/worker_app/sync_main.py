@@ -10,9 +10,13 @@ from .redis_streams import RedisStreamsPublisher, build_redis_client
 from .scheduler import ProviderScheduler
 from .sportmonks import SportmonksClient
 
+
 async def run():
     token = os.environ["SPORTMONKS_API_TOKEN"]
     interval = float(os.getenv("SPORTMONKS_SYNC_INTERVAL_SECONDS", "30"))
+    predictions_enabled = os.getenv(
+        "SPORTMONKS_PREDICTIONS_ENABLED", "false"
+    ).strip().lower() in {"1", "true", "yes", "on"}
     fixture_ids_raw = os.getenv("SPORTMONKS_FIXTURE_IDS", "")
     fixture_ids = tuple(
         item.strip()
@@ -30,6 +34,7 @@ async def run():
     fixture_sync = SportmonksFixtureSyncService(
         client=client,
         publisher=publisher,
+        predictions_enabled=predictions_enabled,
     )
     event_sync = SportmonksEventSyncService(
         client=client,
@@ -50,6 +55,7 @@ async def run():
         await scheduler.run_forever(interval_seconds=interval)
     finally:
         await client.close()
+
 
 if __name__ == "__main__":
     asyncio.run(run())
