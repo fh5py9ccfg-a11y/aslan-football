@@ -26,6 +26,7 @@ dev = ["pytest>=8,<9"]
 pythonpath = [
   "packages/football_core/src",
   "apps/api",
+  "apps/worker",
 ]
 testpaths = [
   "packages/football_core/tests",
