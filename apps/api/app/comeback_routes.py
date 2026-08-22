@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
+from .comeback_backtest import run_comeback_backtest
 from .comeback_detector import evaluate_comeback
 from .comeback_fixture_adapter import comeback_data_readiness, load_comeback_fixtures
 from .comeback_scanner import scan_comeback_candidates
@@ -102,6 +103,17 @@ def stored_comeback_candidates(
         "count": len(items),
         "items": items,
     }
+
+
+@router.get("/backtest")
+def comeback_backtest(
+    lookback_days: int = Query(default=1460, ge=90, le=3650),
+    min_matches: int = Query(default=100, ge=20, le=5000),
+):
+    return run_comeback_backtest(
+        lookback_days=lookback_days,
+        min_matches=min_matches,
+    )
 
 
 @router.get("/threshold-guide")
