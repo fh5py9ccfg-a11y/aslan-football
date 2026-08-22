@@ -28,10 +28,15 @@ class ProviderScheduler:
             end_date=(today + timedelta(days=1)).isoformat(),
         )
 
-        fixture_ids = await self.fixture_ids_provider()
+        configured_ids = await self.fixture_ids_provider()
+        fixture_ids = tuple(dict.fromkeys(
+            [str(item) for item in configured_ids]
+            + [str(item) for item in getattr(fixture_report, "fixture_ids", ())]
+        ))
+
         event_sync_count = 0
         for fixture_id in fixture_ids:
-            await self.event_sync.sync_fixture(str(fixture_id))
+            await self.event_sync.sync_fixture(fixture_id)
             event_sync_count += 1
 
         return SchedulerRunReport(
