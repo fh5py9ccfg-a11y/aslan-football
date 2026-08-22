@@ -27,8 +27,8 @@ echo "Sportmonks senkronizasyonu başlatılıyor..."
 PYTHONPATH=/app/apps/worker python -m worker_app.sync_main &
 echo "Sportmonks senkronizasyonu arka planda başlatıldı."
 
-echo "Aslan Football başlatılıyor: port ${PORT_VALUE}"
-exec uvicorn apps.api.app.main:app \
+echo "Aslan Football + HTFT feed başlatılıyor: port ${PORT_VALUE}"
+exec uvicorn apps.api.app.main_htft:app \
   --host 0.0.0.0 \
   --port "${PORT_VALUE}" \
   --proxy-headers \
