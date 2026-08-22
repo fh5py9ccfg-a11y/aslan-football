@@ -12,6 +12,7 @@ from .comeback_detector import evaluate_comeback
 from .comeback_fixture_adapter import comeback_data_readiness, load_comeback_fixtures
 from .comeback_scanner import scan_comeback_candidates
 from .comeback_bulletin import filter_to_bulletin
+from .comeback_market_fallback import verified_market_fallback
 
 router=APIRouter(prefix="/api/comeback",tags=["HT/FT Comeback Detector"])
 TR=ZoneInfo("Europe/Istanbul")
@@ -22,12 +23,22 @@ def _today_window():
     now=datetime.now(TR); start_local=now.replace(hour=0,minute=0,second=0,microsecond=0); end_local=start_local+timedelta(days=1)
     return start_local.astimezone(timezone.utc),end_local.astimezone(timezone.utc),start_local.date()
 
+def _same_fixture(a:dict,b:dict)->bool:
+    ah=str(a.get('home_team','')).lower(); aa=str(a.get('away_team','')).lower(); bh=str(b.get('home_team','')).lower(); ba=str(b.get('away_team','')).lower()
+    return ah==bh and aa==ba
+
 def _today_bulletin_fixtures(limit=2000):
-    start,end,day=_today_window(); fixtures=load_comeback_fixtures(start=start,end=end,limit=limit); filtered,bulletin_total=filter_to_bulletin(fixtures,day=day)
-    return filtered,bulletin_total,day.isoformat()
+    start,end,day=_today_window()
+    fixtures=load_comeback_fixtures(start=start,end=end,limit=limit)
+    filtered,bulletin_total=filter_to_bulletin(fixtures,day=day)
+    fallbacks=verified_market_fallback(day)
+    for seed in fallbacks:
+        if not any(_same_fixture(seed,row) for row in filtered):
+            filtered.append(seed)
+    return filtered,bulletin_total,day.isoformat(),len(fallbacks)
 
 @router.get('/health')
-def comeback_health(): return {'enabled':True,'markets':['2/1','1/2'],'day_timezone':'Europe/Istanbul','bulletin_filter':True}
+def comeback_health(): return {'enabled':True,'markets':['2/1','1/2'],'day_timezone':'Europe/Istanbul','bulletin_filter':True,'verified_market_fallback':True}
 @router.post('/evaluate')
 def comeback_evaluate(request:ComebackEvaluateRequest): return evaluate_comeback(request.payload,alert_threshold=request.alert_threshold)
 @router.post('/scan')
@@ -35,28 +46,28 @@ def comeback_scan(request:ComebackScanRequest):
     items=scan_comeback_candidates(request.fixtures,alert_threshold=request.alert_threshold,min_similar_matches=request.min_similar_matches,limit=request.limit); return {'count':len(items),'items':items}
 @router.get('/stored-readiness')
 def stored_comeback_readiness():
-    fixtures,bulletin_total,day=_today_bulletin_fixtures(1000); return {'date_tr':day,'bulletin_total':bulletin_total,**comeback_data_readiness(fixtures)}
+    fixtures,bulletin_total,day,fallbacks=_today_bulletin_fixtures(1000); return {'date_tr':day,'bulletin_total':bulletin_total,'fallback_market_fixtures':fallbacks,**comeback_data_readiness(fixtures)}
 @router.get('/stored-candidates')
 def stored_comeback_candidates(alert_threshold:int=Query(default=75,ge=50,le=95),limit:int=Query(default=10,ge=1,le=100)):
-    fixtures,bulletin_total,day=_today_bulletin_fixtures(); readiness=comeback_data_readiness(fixtures); backtest=run_comeback_backtest(lookback_days=1460,min_matches=100); enough=bool(backtest.get('enough_data')); calibration=calibrate_thresholds(backtest)
+    fixtures,bulletin_total,day,fallbacks=_today_bulletin_fixtures(); readiness=comeback_data_readiness(fixtures); backtest=run_comeback_backtest(lookback_days=1460,min_matches=100); enough=bool(backtest.get('enough_data')); calibration=calibrate_thresholds(backtest)
     t21=int(calibration['2/1']['threshold']) if enough else alert_threshold; t12=int(calibration['1/2']['threshold']) if enough else alert_threshold
     items=scan_comeback_candidates(fixtures,alert_threshold=alert_threshold,threshold_2_1=t21,threshold_1_2=t12,min_similar_matches=20,limit=limit,ranking_only=not enough)
-    return {'date_tr':day,'bulletin_filter':True,'bulletin_total':bulletin_total,'mode':'CALIBRATED' if enough else 'LIVE_RANKING','readiness':readiness,'count':len(items),'items':items}
+    return {'date_tr':day,'bulletin_filter':True,'bulletin_total':bulletin_total,'fallback_market_fixtures':fallbacks,'mode':'CALIBRATED' if enough else 'LIVE_RANKING','readiness':readiness,'count':len(items),'items':items}
 @router.get('/backtest')
 def comeback_backtest(lookback_days:int=Query(default=1460,ge=90,le=3650),min_matches:int=Query(default=100,ge=20,le=5000)):
     result=run_comeback_backtest(lookback_days=lookback_days,min_matches=min_matches); return {**result,'recommended_thresholds':calibrate_thresholds(result)}
 
 def _self_check_payload(min_matches:int,limit:int):
-    fixtures,bulletin_total,day=_today_bulletin_fixtures(); readiness=comeback_data_readiness(fixtures); backtest=run_comeback_backtest(lookback_days=1460,min_matches=min_matches); enough=bool(backtest.get('enough_data')); calibration=calibrate_thresholds(backtest)
+    fixtures,bulletin_total,day,fallbacks=_today_bulletin_fixtures(); readiness=comeback_data_readiness(fixtures); backtest=run_comeback_backtest(lookback_days=1460,min_matches=min_matches); enough=bool(backtest.get('enough_data')); calibration=calibrate_thresholds(backtest)
     t21=int(calibration['2/1']['threshold']) if enough else 75; t12=int(calibration['1/2']['threshold']) if enough else 75
     items=scan_comeback_candidates(fixtures,alert_threshold=75,threshold_2_1=t21,threshold_1_2=t12,min_similar_matches=20,limit=limit,ranking_only=not enough)
-    return {'date_tr':day,'bulletin_total':bulletin_total,'running':readiness.get('ready',0)>0,'mode':'CALIBRATED' if enough else 'LIVE_RANKING','backtest':backtest,'readiness':readiness,'items':items}
+    return {'date_tr':day,'bulletin_total':bulletin_total,'fallbacks':fallbacks,'running':readiness.get('ready',0)>0,'mode':'CALIBRATED' if enough else 'LIVE_RANKING','backtest':backtest,'readiness':readiness,'items':items}
 @router.get('/self-check')
 def comeback_self_check(min_matches:int=Query(default=100,ge=20,le=5000),limit:int=Query(default=3,ge=1,le=20)): return _self_check_payload(min_matches,limit)
 @router.get('/self-check.txt',response_class=PlainTextResponse)
 def comeback_self_check_text(min_matches:int=Query(default=100,ge=20,le=5000),limit:int=Query(default=3,ge=1,le=20)):
     p=_self_check_payload(min_matches,limit); b=p['backtest']; r=p['readiness']; items=p['items']
-    lines=['ASLAN 2/1-1/2 MOTOR',f"DATE(TR): {p['date_tr']} | TODAY ONLY: YES | BULLETIN ONLY: YES",f"RUNNING: {'YES' if p['running'] else 'NO'} | MODE: {p['mode']}",f"BACKTEST: {b.get('eligible_matches',0)}/{b.get('minimum_required',min_matches)}",f"BULLETIN MATCHED: {r.get('fixtures',0)}/{p['bulletin_total']} | DATA READY: {r.get('ready',0)}",f"RANKED: {len(items)}"]
+    lines=['ASLAN 2/1-1/2 MOTOR',f"DATE(TR): {p['date_tr']} | TODAY ONLY: YES | BULLETIN ONLY: YES",f"RUNNING: {'YES' if p['running'] else 'NO'} | MODE: {p['mode']}",f"BACKTEST: {b.get('eligible_matches',0)}/{b.get('minimum_required',min_matches)}",f"BULLETIN MATCHED: {r.get('fixtures',0)}/{p['bulletin_total']} | DATA READY: {r.get('ready',0)} | VERIFIED FALLBACK: {p['fallbacks']}",f"RANKED: {len(items)}"]
     for i,item in enumerate(items,1): lines.append(f"{i}. {item.get('home_team')} - {item.get('away_team')} | {item.get('preferred_market')} | score={item.get('score')} | 2/1={item.get('score_2_1')} | 1/2={item.get('score_1_2')} | quality={item.get('quality_score')}")
     return '\n'.join(lines)+'\n'
 @router.get('/threshold-guide')
