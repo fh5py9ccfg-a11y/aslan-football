@@ -5,6 +5,19 @@ on:
   pull_request:
 
 jobs:
+  comeback-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .[dev]
+      - name: Run comeback engine tests
+        env:
+          COMEBACK_STARTUP_DIAGNOSTIC: "false"
+        run: pytest -q apps/api/tests/test_comeback*.py apps/worker/tests/test_comeback*.py
+
   unit:
     runs-on: ubuntu-latest
     steps:
