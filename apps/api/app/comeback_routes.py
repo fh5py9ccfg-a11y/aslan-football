@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from .comeback_detector import evaluate_comeback
+from .comeback_fixture_adapter import comeback_data_readiness, load_comeback_fixtures
 from .comeback_scanner import scan_comeback_candidates
 
 
@@ -53,6 +55,51 @@ def comeback_scan(request: ComebackScanRequest):
     return {
         "count": len(items),
         "threshold": request.alert_threshold,
+        "items": items,
+    }
+
+
+@router.get("/stored-readiness")
+def stored_comeback_readiness(
+    hours: int = Query(default=36, ge=1, le=168),
+):
+    start = datetime.now(timezone.utc)
+    fixtures = load_comeback_fixtures(
+        start=start,
+        end=start + timedelta(hours=hours),
+        limit=1000,
+    )
+    return {
+        "window_hours": hours,
+        **comeback_data_readiness(fixtures),
+    }
+
+
+@router.get("/stored-candidates")
+def stored_comeback_candidates(
+    hours: int = Query(default=36, ge=1, le=168),
+    alert_threshold: int = Query(default=75, ge=50, le=95),
+    min_similar_matches: int = Query(default=20, ge=1, le=500),
+    limit: int = Query(default=10, ge=1, le=100),
+):
+    start = datetime.now(timezone.utc)
+    fixtures = load_comeback_fixtures(
+        start=start,
+        end=start + timedelta(hours=hours),
+        limit=2000,
+    )
+    readiness = comeback_data_readiness(fixtures)
+    items = scan_comeback_candidates(
+        fixtures,
+        alert_threshold=alert_threshold,
+        min_similar_matches=min_similar_matches,
+        limit=limit,
+    )
+    return {
+        "window_hours": hours,
+        "threshold": alert_threshold,
+        "readiness": readiness,
+        "count": len(items),
         "items": items,
     }
 
