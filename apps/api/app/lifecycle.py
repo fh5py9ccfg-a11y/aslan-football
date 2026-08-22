@@ -32,6 +32,15 @@ def build_audit_repository(environment):
 @asynccontextmanager
 async def lifespan(app):
     app.state.shutting_down = False
+
+    # Mount optional feature routers once the FastAPI app exists. Keeping this
+    # here avoids coupling the large main.py module to isolated prediction
+    # features and keeps startup backwards-compatible.
+    if not getattr(app.state, "comeback_routes_mounted", False):
+        from .comeback_routes import router as comeback_router
+        app.include_router(comeback_router)
+        app.state.comeback_routes_mounted = True
+
     refresher = getattr(
         app.state,
         'oidc_metadata_refresher',
