@@ -75,14 +75,12 @@ def _number(source: Mapping[str, Any], key: str) -> float | int | None:
 
 
 def _extract_comeback_inputs(raw: Mapping[str, Any]) -> dict[str, Any]:
-    """Extract precomputed model/market signals without inventing values."""
     source = _first_mapping(
         raw.get("comeback_inputs"),
         raw.get("prediction_features"),
         raw.get("market_features"),
         _mapping(raw.get("meta")).get("comeback_inputs"),
     )
-
     result: dict[str, Any] = {}
     for key in (*REQUIRED_MARKET_FIELDS, *OPTIONAL_SIGNAL_FIELDS):
         value = _number(source, key)
@@ -98,6 +96,9 @@ def fixture_to_comeback_payload(item: FixtureModel) -> dict[str, Any]:
     meta = _mapping(raw.get("meta"))
     prediction_error = meta.get("comeback_predictions_error")
     prediction_available = meta.get("comeback_predictions_available")
+    odds_error = meta.get("comeback_odds_error")
+    odds_available = meta.get("comeback_odds_available")
+    odds_count = int(raw.get("sportmonks_prematch_odds_count") or 0)
 
     kickoff = item.kickoff_at
     if kickoff is not None:
@@ -120,47 +121,30 @@ def fixture_to_comeback_payload(item: FixtureModel) -> dict[str, Any]:
         "comeback_inputs": inputs,
         "data_ready": not missing,
         "missing_fields": missing,
+        "odds_available": odds_available,
+        "odds_error": str(odds_error)[:300] if odds_error else None,
+        "odds_items": odds_count,
         "prediction_available": prediction_available,
         "prediction_error": str(prediction_error)[:300] if prediction_error else None,
         "prediction_items": len(raw.get("sportmonks_predictions") or ()) if isinstance(raw.get("sportmonks_predictions"), list) else 0,
     }
 
 
-def load_comeback_fixtures(
-    *,
-    start: datetime | None = None,
-    end: datetime | None = None,
-    limit: int = 500,
-    history_lookback_days: int = 730,
-    neighbor_lookback_days: int = 1460,
-    neighbors: int = 80,
-    max_neighbor_distance: float = 0.22,
-) -> list[dict[str, Any]]:
+def load_comeback_fixtures(*, start: datetime | None = None, end: datetime | None = None, limit: int = 500,
+                           history_lookback_days: int = 730, neighbor_lookback_days: int = 1460,
+                           neighbors: int = 80, max_neighbor_distance: float = 0.22) -> list[dict[str, Any]]:
     now = datetime.now(timezone.utc)
     start = start or now.replace(hour=0, minute=0, second=0, microsecond=0)
-
     with SessionLocal() as session:
-        statement = (
-            select(FixtureModel)
-            .where(FixtureModel.kickoff_at >= start)
-            .order_by(FixtureModel.kickoff_at.asc())
-            .limit(max(1, min(int(limit), 2000)))
-        )
+        statement = (select(FixtureModel).where(FixtureModel.kickoff_at >= start)
+                     .order_by(FixtureModel.kickoff_at.asc()).limit(max(1, min(int(limit), 2000))))
         if end is not None:
             statement = statement.where(FixtureModel.kickoff_at < end)
         items = session.execute(statement).scalars().all()
-
     fixtures = [fixture_to_comeback_payload(item) for item in items]
-    fixtures = enrich_fixtures_with_history(
-        fixtures,
-        lookback_days=history_lookback_days,
-    )
-    return enrich_fixtures_with_neighbors(
-        fixtures,
-        neighbors=neighbors,
-        max_distance=max_neighbor_distance,
-        lookback_days=neighbor_lookback_days,
-    )
+    fixtures = enrich_fixtures_with_history(fixtures, lookback_days=history_lookback_days)
+    return enrich_fixtures_with_neighbors(fixtures, neighbors=neighbors, max_distance=max_neighbor_distance,
+                                          lookback_days=neighbor_lookback_days)
 
 
 def comeback_data_readiness(fixtures: list[Mapping[str, Any]]) -> dict[str, Any]:
@@ -169,46 +153,30 @@ def comeback_data_readiness(fixtures: list[Mapping[str, Any]]) -> dict[str, Any]
     history_ready = sum(1 for item in fixtures if bool(item.get("history_ready")))
     neighbors_ready = sum(1 for item in fixtures if bool(item.get("neighbors_ready")))
     missing_counts = {key: 0 for key in REQUIRED_MARKET_FIELDS}
-    direct_htft = sum(
-        1
-        for item in fixtures
-        if any(
-            key in (item.get("comeback_inputs") or {})
-            for key in ("direct_2_1_probability", "direct_1_2_probability")
-        )
-    )
+    direct_htft = sum(1 for item in fixtures if any(key in (item.get("comeback_inputs") or {}) for key in ("direct_2_1_probability", "direct_1_2_probability")))
+    odds_available = sum(1 for item in fixtures if item.get("odds_available") is True)
+    odds_empty = sum(1 for item in fixtures if item.get("odds_available") is False and not item.get("odds_error"))
+    odds_items = sum(int(item.get("odds_items") or 0) for item in fixtures)
+    odds_errors = Counter(str(item.get("odds_error")) for item in fixtures if item.get("odds_error"))
     prediction_available = sum(1 for item in fixtures if item.get("prediction_available") is True)
     prediction_empty = sum(1 for item in fixtures if item.get("prediction_available") is False and not item.get("prediction_error"))
     prediction_items = sum(int(item.get("prediction_items") or 0) for item in fixtures)
-    errors = Counter(
-        str(item.get("prediction_error"))
-        for item in fixtures
-        if item.get("prediction_error")
-    )
-
+    errors = Counter(str(item.get("prediction_error")) for item in fixtures if item.get("prediction_error"))
     for item in fixtures:
         for key in item.get("missing_fields", ()):
             if key in missing_counts:
                 missing_counts[key] += 1
-
     return {
-        "fixtures": total,
-        "ready": ready,
-        "not_ready": total - ready,
+        "fixtures": total, "ready": ready, "not_ready": total - ready,
         "ready_ratio": (round(ready / total, 4) if total else 0.0),
-        "history_ready": history_ready,
-        "history_ready_ratio": (round(history_ready / total, 4) if total else 0.0),
-        "neighbors_ready": neighbors_ready,
-        "neighbors_ready_ratio": (round(neighbors_ready / total, 4) if total else 0.0),
-        "direct_htft_ready": direct_htft,
-        "direct_htft_ratio": (round(direct_htft / total, 4) if total else 0.0),
-        "prediction_available": prediction_available,
-        "prediction_empty": prediction_empty,
-        "prediction_items": prediction_items,
-        "prediction_error_count": sum(errors.values()),
-        "prediction_errors": [
-            {"error": error, "count": count}
-            for error, count in errors.most_common(3)
-        ],
+        "history_ready": history_ready, "history_ready_ratio": (round(history_ready / total, 4) if total else 0.0),
+        "neighbors_ready": neighbors_ready, "neighbors_ready_ratio": (round(neighbors_ready / total, 4) if total else 0.0),
+        "direct_htft_ready": direct_htft, "direct_htft_ratio": (round(direct_htft / total, 4) if total else 0.0),
+        "odds_available": odds_available, "odds_empty": odds_empty, "odds_items": odds_items,
+        "odds_error_count": sum(odds_errors.values()),
+        "odds_errors": [{"error": error, "count": count} for error, count in odds_errors.most_common(3)],
+        "prediction_available": prediction_available, "prediction_empty": prediction_empty,
+        "prediction_items": prediction_items, "prediction_error_count": sum(errors.values()),
+        "prediction_errors": [{"error": error, "count": count} for error, count in errors.most_common(3)],
         "missing_counts": missing_counts,
     }
