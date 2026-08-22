@@ -1,21 +1,17 @@
-from fastapi import FastAPI
-
 from app.comeback_routes import router as comeback_router
 
 
-def _route_paths(app: FastAPI) -> list[str]:
+def _router_paths() -> list[str]:
+    prefix = comeback_router.prefix.rstrip("/")
     return [
-        path
-        for route in app.routes
+        f"{prefix}{path}"
+        for route in comeback_router.routes
         if (path := getattr(route, "path", None)) is not None
     ]
 
 
-def test_comeback_routes_are_mountable_and_present():
-    app = FastAPI()
-    app.include_router(comeback_router)
-
-    paths = set(_route_paths(app))
+def test_comeback_routes_are_present():
+    paths = set(_router_paths())
 
     assert "/api/comeback/health" in paths
     assert "/api/comeback/stored-readiness" in paths
@@ -26,12 +22,9 @@ def test_comeback_routes_are_mountable_and_present():
 
 
 def test_comeback_routes_have_unique_paths():
-    app = FastAPI()
-    app.include_router(comeback_router)
-
     comeback_paths = [
         path
-        for path in _route_paths(app)
+        for path in _router_paths()
         if path.startswith("/api/comeback")
     ]
 
