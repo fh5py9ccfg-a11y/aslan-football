@@ -23,19 +23,26 @@ def _today_window():
     now=datetime.now(TR); start_local=now.replace(hour=0,minute=0,second=0,microsecond=0); end_local=start_local+timedelta(days=1)
     return start_local.astimezone(timezone.utc),end_local.astimezone(timezone.utc),start_local.date()
 
-def _same_fixture(a:dict,b:dict)->bool:
-    ah=str(a.get('home_team','')).lower(); aa=str(a.get('away_team','')).lower(); bh=str(b.get('home_team','')).lower(); ba=str(b.get('away_team','')).lower()
-    return ah==bh and aa==ba
+def _key(row:dict)->tuple[str,str]:
+    def n(v):
+        return ''.join(ch for ch in str(v or '').lower() if ch.isalnum())
+    return n(row.get('home_team')),n(row.get('away_team'))
 
 def _today_bulletin_fixtures(limit=2000):
     start,end,day=_today_window()
     fixtures=load_comeback_fixtures(start=start,end=end,limit=limit)
     filtered,bulletin_total=filter_to_bulletin(fixtures,day=day)
-    fallbacks=verified_market_fallback(day)
-    for seed in fallbacks:
-        if not any(_same_fixture(seed,row) for row in filtered):
-            filtered.append(seed)
-    return filtered,bulletin_total,day.isoformat(),len(fallbacks)
+    seen={_key(row) for row in filtered}
+    fallback_added=0
+    for seed in verified_market_fallback(day):
+        verified,_=filter_to_bulletin([seed],day=day)
+        if not verified:
+            continue
+        k=_key(seed)
+        if k in seen:
+            continue
+        filtered.append(seed); seen.add(k); fallback_added+=1
+    return filtered,bulletin_total,day.isoformat(),fallback_added
 
 @router.get('/health')
 def comeback_health(): return {'enabled':True,'markets':['2/1','1/2'],'day_timezone':'Europe/Istanbul','bulletin_filter':True,'verified_market_fallback':True}
@@ -67,7 +74,8 @@ def comeback_self_check(min_matches:int=Query(default=100,ge=20,le=5000),limit:i
 @router.get('/self-check.txt',response_class=PlainTextResponse)
 def comeback_self_check_text(min_matches:int=Query(default=100,ge=20,le=5000),limit:int=Query(default=3,ge=1,le=20)):
     p=_self_check_payload(min_matches,limit); b=p['backtest']; r=p['readiness']; items=p['items']
-    lines=['ASLAN 2/1-1/2 MOTOR',f"DATE(TR): {p['date_tr']} | TODAY ONLY: YES | BULLETIN ONLY: YES",f"RUNNING: {'YES' if p['running'] else 'NO'} | MODE: {p['mode']}",f"BACKTEST: {b.get('eligible_matches',0)}/{b.get('minimum_required',min_matches)}",f"BULLETIN MATCHED: {r.get('fixtures',0)}/{p['bulletin_total']} | DATA READY: {r.get('ready',0)} | VERIFIED FALLBACK: {p['fallbacks']}",f"RANKED: {len(items)}"]
+    state='YES' if p['running'] and len(items)>=2 else 'PARTIAL' if p['running'] else 'NO'
+    lines=['ASLAN 2/1-1/2 MOTOR',f"DATE(TR): {p['date_tr']} | TODAY ONLY: YES | BULLETIN ONLY: YES",f"RUNNING: {state} | MODE: {p['mode']}",f"BACKTEST: {b.get('eligible_matches',0)}/{b.get('minimum_required',min_matches)}",f"BULLETIN MATCHED: {r.get('fixtures',0)}/{p['bulletin_total']} | DATA READY: {r.get('ready',0)} | VERIFIED FALLBACK ADDED: {p['fallbacks']}",f"RANKED: {len(items)}"]
     for i,item in enumerate(items,1): lines.append(f"{i}. {item.get('home_team')} - {item.get('away_team')} | {item.get('preferred_market')} | score={item.get('score')} | 2/1={item.get('score_2_1')} | 1/2={item.get('score_1_2')} | quality={item.get('quality_score')}")
     return '\n'.join(lines)+'\n'
 @router.get('/threshold-guide')
