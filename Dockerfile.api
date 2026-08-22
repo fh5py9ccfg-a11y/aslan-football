@@ -9,4 +9,4 @@ COPY apps /app/apps
 RUN pip install --no-cache-dir -e .[dev]
 
 ENV PYTHONPATH=/app/packages/football_core/src:/app
-CMD ["sh", "-c", "alembic upgrade head && uvicorn apps.api.app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn apps.api.app.main_htft:app --host 0.0.0.0 --port 8000"]
