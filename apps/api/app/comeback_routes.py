@@ -45,7 +45,7 @@ def _today_bulletin_fixtures(limit=2000):
     return filtered,bulletin_total,day.isoformat(),fallback_added
 
 @router.get('/health')
-def comeback_health(): return {'enabled':True,'markets':['2/1','1/2'],'day_timezone':'Europe/Istanbul','bulletin_filter':True,'verified_market_fallback':True,'similar_market_neighbors':True}
+def comeback_health(): return {'enabled':True,'markets':['2/1','1/2'],'day_timezone':'Europe/Istanbul','bulletin_filter':True,'verified_market_fallback':True,'similar_market_neighbors':True,'data_diagnostics':True}
 @router.post('/evaluate')
 def comeback_evaluate(request:ComebackEvaluateRequest): return evaluate_comeback(request.payload,alert_threshold=request.alert_threshold)
 @router.post('/scan')
@@ -57,6 +57,13 @@ def comeback_scan(request:ComebackScanRequest):
 @router.get('/stored-readiness')
 def stored_comeback_readiness():
     fixtures,bulletin_total,day,fallbacks=_today_bulletin_fixtures(1000); nready=sum(1 for f in fixtures if f.get('neighbors_ready')); return {'date_tr':day,'bulletin_total':bulletin_total,'fallback_market_fixtures':fallbacks,'neighbors_ready':nready,**comeback_data_readiness(fixtures)}
+@router.get('/data-diagnostics')
+def comeback_data_diagnostics(limit:int=Query(default=50,ge=1,le=200)):
+    fixtures,bulletin_total,day,fallbacks=_today_bulletin_fixtures(); readiness=comeback_data_readiness(fixtures)
+    rows=[]
+    for f in fixtures[:limit]:
+        rows.append({'fixture_id':f.get('fixture_id'),'home_team':f.get('home_team'),'away_team':f.get('away_team'),'data_ready':bool(f.get('data_ready')),'missing_fields':f.get('missing_fields') or [],'odds_available':f.get('odds_available'),'odds_items':f.get('odds_items',0),'odds_error':f.get('odds_error'),'history_ready':bool(f.get('history_ready')),'neighbors_ready':bool(f.get('neighbors_ready')),'provider':f.get('provider')})
+    return {'date_tr':day,'bulletin_total':bulletin_total,'matched':len(fixtures),'fallbacks':fallbacks,'readiness':readiness,'fixtures':rows}
 @router.get('/stored-candidates')
 def stored_comeback_candidates(alert_threshold:int=Query(default=75,ge=50,le=95),limit:int=Query(default=10,ge=1,le=100)):
     fixtures,bulletin_total,day,fallbacks=_today_bulletin_fixtures(); readiness=comeback_data_readiness(fixtures); backtest=run_comeback_backtest(lookback_days=1460,min_matches=100); enough=bool(backtest.get('enough_data')); calibration=calibrate_thresholds(backtest)
@@ -78,7 +85,7 @@ def comeback_self_check(min_matches:int=Query(default=100,ge=20,le=5000),limit:i
 def comeback_self_check_text(min_matches:int=Query(default=100,ge=20,le=5000),limit:int=Query(default=3,ge=1,le=20)):
     p=_self_check_payload(min_matches,limit); b=p['backtest']; r=p['readiness']; items=p['items']; qualified=sum(1 for x in items if x.get('qualified'))
     state='YES' if p['running'] and qualified>=1 else 'PARTIAL' if p['running'] else 'NO'
-    lines=['ASLAN 2/1-1/2 MOTOR',f"DATE(TR): {p['date_tr']} | TODAY ONLY: YES | BULLETIN ONLY: YES",f"RUNNING: {state} | MODE: {p['mode']}",f"BACKTEST: {b.get('eligible_matches',0)}/{b.get('minimum_required',min_matches)}",f"BULLETIN MATCHED: {r.get('fixtures',0)}/{p['bulletin_total']} | DATA READY: {r.get('ready',0)} | VERIFIED FALLBACK ADDED: {p['fallbacks']} | NEIGHBORS READY: {p['neighbors_ready']}",f"RANKED: {len(items)} | QUALIFIED: {qualified}"]
+    lines=['ASLAN 2/1-1/2 MOTOR',f"DATE(TR): {p['date_tr']} | TODAY ONLY: YES | BULLETIN ONLY: YES",f"RUNNING: {state} | MODE: {p['mode']}",f"BACKTEST: {b.get('eligible_matches',0)}/{b.get('minimum_required',min_matches)}",f"BULLETIN MATCHED: {r.get('fixtures',0)}/{p['bulletin_total']} | DATA READY: {r.get('ready',0)} | VERIFIED FALLBACK ADDED: {p['fallbacks']} | NEIGHBORS READY: {p['neighbors_ready']}",f"ODDS AVAILABLE: {r.get('odds_available',0)} | ODDS EMPTY: {r.get('odds_empty',0)} | ODDS ERRORS: {r.get('odds_error_count',0)} | ODDS ITEMS: {r.get('odds_items',0)}",f"RANKED: {len(items)} | QUALIFIED: {qualified}"]
     for i,item in enumerate(items,1): lines.append(f"{i}. {item.get('home_team')} - {item.get('away_team')} | {item.get('preferred_market')} | score={item.get('score')} | conf={item.get('confidence_score')} | qualified={item.get('qualified')} | 2/1={item.get('score_2_1')} | 1/2={item.get('score_1_2')} | quality={item.get('quality_score')} | evidence={item.get('evidence_score')}")
     return '\n'.join(lines)+'\n'
 @router.get('/threshold-guide')
