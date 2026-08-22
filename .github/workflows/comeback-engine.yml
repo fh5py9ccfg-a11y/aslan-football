@@ -1,0 +1,33 @@
+name: comeback-engine
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/app/comeback_*.py"
+      - "apps/api/tests/test_comeback*.py"
+      - "apps/worker/worker_app/**"
+      - "apps/worker/tests/test_comeback*.py"
+      - ".github/workflows/comeback-engine.yml"
+  pull_request:
+    paths:
+      - "apps/api/app/comeback_*.py"
+      - "apps/api/tests/test_comeback*.py"
+      - "apps/worker/worker_app/**"
+      - "apps/worker/tests/test_comeback*.py"
+      - ".github/workflows/comeback-engine.yml"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .[dev]
+      - name: Run comeback engine tests
+        env:
+          COMEBACK_STARTUP_DIAGNOSTIC: "false"
+        run: pytest -q apps/api/tests/test_comeback*.py apps/worker/tests/test_comeback*.py
