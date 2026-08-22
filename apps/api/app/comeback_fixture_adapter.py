@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
@@ -94,6 +95,9 @@ def fixture_to_comeback_payload(item: FixtureModel) -> dict[str, Any]:
     raw = _parse_raw(item.raw_json)
     inputs = _extract_comeback_inputs(raw)
     missing = [key for key in REQUIRED_MARKET_FIELDS if key not in inputs]
+    meta = _mapping(raw.get("meta"))
+    prediction_error = meta.get("comeback_predictions_error")
+    prediction_available = meta.get("comeback_predictions_available")
 
     kickoff = item.kickoff_at
     if kickoff is not None:
@@ -116,6 +120,9 @@ def fixture_to_comeback_payload(item: FixtureModel) -> dict[str, Any]:
         "comeback_inputs": inputs,
         "data_ready": not missing,
         "missing_fields": missing,
+        "prediction_available": prediction_available,
+        "prediction_error": str(prediction_error)[:300] if prediction_error else None,
+        "prediction_items": len(raw.get("sportmonks_predictions") or ()) if isinstance(raw.get("sportmonks_predictions"), list) else 0,
     }
 
 
@@ -170,6 +177,15 @@ def comeback_data_readiness(fixtures: list[Mapping[str, Any]]) -> dict[str, Any]
             for key in ("direct_2_1_probability", "direct_1_2_probability")
         )
     )
+    prediction_available = sum(1 for item in fixtures if item.get("prediction_available") is True)
+    prediction_empty = sum(1 for item in fixtures if item.get("prediction_available") is False and not item.get("prediction_error"))
+    prediction_items = sum(int(item.get("prediction_items") or 0) for item in fixtures)
+    errors = Counter(
+        str(item.get("prediction_error"))
+        for item in fixtures
+        if item.get("prediction_error")
+    )
+
     for item in fixtures:
         for key in item.get("missing_fields", ()):
             if key in missing_counts:
@@ -186,5 +202,13 @@ def comeback_data_readiness(fixtures: list[Mapping[str, Any]]) -> dict[str, Any]
         "neighbors_ready_ratio": (round(neighbors_ready / total, 4) if total else 0.0),
         "direct_htft_ready": direct_htft,
         "direct_htft_ratio": (round(direct_htft / total, 4) if total else 0.0),
+        "prediction_available": prediction_available,
+        "prediction_empty": prediction_empty,
+        "prediction_items": prediction_items,
+        "prediction_error_count": sum(errors.values()),
+        "prediction_errors": [
+            {"error": error, "count": count}
+            for error, count in errors.most_common(3)
+        ],
         "missing_counts": missing_counts,
     }
