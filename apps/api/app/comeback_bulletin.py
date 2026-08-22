@@ -6,36 +6,50 @@ from datetime import date
 from difflib import SequenceMatcher
 from typing import Iterable, Mapping
 
+# Verified from the 22 Aug 2026 public Iddaa programme archive.
+# Only fixtures observed in that programme are allowed here.
 _BULLETIN_2026_08_22 = {
-    ("rizespor","samsunspor"),("corum","kasimpasa"),("breda","ajax b"),("dundee united","dundee"),
-    ("ammanford","gap connahs qua"),("crusaders","portadown fc"),("carrick rangers","coleraine"),("dungannon","bangor fc"),
-    ("club brugge ii","rfc seraing"),("zemplin","skalica"),("longford","bray wanderers"),("dila gori","torpedo kutaisi"),
-    ("spaeri","samgurali"),("crewe","northampton"),("rotherham","york"),("walsall","grimsby"),
-    ("bristol rovers","newport county"),("exeter","accrington"),("queens park","stenhousemuir"),("morton","arbroath"),
-    ("livingston","dunfermline"),("al orubah club","al raed"),("al taee","al akhdoud"),("al najma","al jandal"),
-    ("annagh united","moyola park"),("ards fc","loughgall fc"),("queens university","institute fc"),("strabane athletic","hw welders"),
-    ("newington yc","rathfriland rangers"),("solihull moors","southend"),("eastleigh","scunthorpe"),("woking","afc fylde"),
-    ("carlisle","hornchurch"),("forest green","boreham wood"),("harrogate","barrow"),("yeovil","gateshead"),
-    ("hume city","caroline springs"),("olympic kingsway","fremantle city"),("stirling lions","western knights"),
-    ("cham","grand saconnex"),("paradiso","fc kreuzlingen"),("luzern ii","bulle"),("east fife","hamilton"),
-    ("cove rangers","peterhead"),("airdrieonians","ross county"),("queen of south","alloa"),("montrose","east kilbride"),
-    ("edinburgh city","annan"),("spartans","elgin"),("stirling albion","stranraer"),("clyde","forfar"),("kelty hearts","dumbarton")
+    ("rizespor", "samsunspor"),
+    ("corum", "kasimpasa"),
+    ("fenerbahce", "konyaspor"),
+    ("ipswich", "sunderland"),
+    ("brentford", "tottenham"),
+    ("nottingham f", "leeds utd"),
+    ("eldense", "cadiz"),
+    ("albacete", "real sociedad i"),
+    ("ceuta", "las palmas"),
+    ("aek", "iraklis 1908"),
+    ("olympiakos", "atromitos"),
+    ("orgryte", "halmstads"),
+    ("sd rsa", "hong kong fc"),
+    ("buler rangers", "kitchee footbal"),
+    ("tampere utd", "rops"),
+    ("chichester cit", "chippenham town"),
+    ("frome town", "gosport borough"),
+    ("hanworth villa", "evesham united"),
+    ("basingstoke", "bath city"),
+    ("dundee united", "dundee"),
 }
 
 _ALIASES = {
-    "dundee utd":"dundee united","dundee united fc":"dundee united",
-    "carrick ranger":"carrick rangers","bangor":"bangor fc","portadown":"portadown fc",
-    "queens univers":"queens university","strabane athle":"strabane athletic",
-    "rathfriland ran":"rathfriland rangers","olympic kingsw":"olympic kingsway",
-    "caroline s":"caroline springs","edinburg c":"edinburgh city",
-    "stirling albio":"stirling albion","gap connahs quay":"gap connahs qua",
-    "corum fk":"corum","caykur rizespor":"rizespor","kasimpasa sk":"kasimpasa",
-    "queen s park":"queens park","queen of the south":"queen of south",
-    "forest green rovers":"forest green","newport county afc":"newport county",
-    "bray wanderers fc":"bray wanderers","rfc seraing united":"rfc seraing",
+    "corum fk": "corum",
+    "caykur rizespor": "rizespor",
+    "kasimpasa sk": "kasimpasa",
+    "fenerbahce sk": "fenerbahce",
+    "nottingham forest": "nottingham f",
+    "nottingham forest fc": "nottingham f",
+    "leeds united": "leeds utd",
+    "dundee utd": "dundee united",
+    "dundee united fc": "dundee united",
+    "athletic club ceuta": "ceuta",
+    "las palmas ud": "las palmas",
+    "olympiacos": "olympiakos",
+    "iraklis": "iraklis 1908",
+    "tampere united": "tampere utd",
+    "rovanimen palloseura": "rops",
 }
 
-_DROP_TOKENS = {"fc","fk","sk","afc","cf","club","football","futbol","sc","ac"}
+_DROP_TOKENS = {"fc", "fk", "sk", "afc", "cf", "club", "football", "futbol", "sc", "ac"}
 
 
 def _norm(value: object) -> str:
