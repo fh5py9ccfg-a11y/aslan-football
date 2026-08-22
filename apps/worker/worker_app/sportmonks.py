@@ -4,12 +4,14 @@ import httpx
 
 from .resilience import CircuitBreaker
 
+
 @dataclass(frozen=True)
 class SportmonksPage:
     data: tuple[dict, ...]
     current_page: int
     last_page: int
     has_more: bool
+
 
 class SportmonksClient:
     def __init__(
@@ -47,6 +49,15 @@ class SportmonksClient:
             "GET", f"/fixtures/{fixture_id}", params=params
         )
         return dict(payload.get("data") or {})
+
+    async def predictions_by_fixture(self, fixture_id, *, include="type"):
+        params = {"include": include} if include else {}
+        payload = await self._request(
+            "GET",
+            f"/predictions/probabilities/fixtures/{fixture_id}",
+            params=params,
+        )
+        return tuple(payload.get("data") or ())
 
     async def events_by_fixture(self, fixture_id, *, page=1):
         payload = await self._request(
