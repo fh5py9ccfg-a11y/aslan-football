@@ -7,6 +7,7 @@ from typing import Any, Mapping
 from sqlalchemy import select
 
 from .comeback_history import enrich_fixtures_with_history
+from .comeback_neighbors import enrich_fixtures_with_neighbors
 from .db import SessionLocal
 from .models import FixtureModel
 
@@ -124,6 +125,9 @@ def load_comeback_fixtures(
     end: datetime | None = None,
     limit: int = 500,
     history_lookback_days: int = 730,
+    neighbor_lookback_days: int = 1460,
+    neighbors: int = 80,
+    max_neighbor_distance: float = 0.22,
 ) -> list[dict[str, Any]]:
     now = datetime.now(timezone.utc)
     start = start or now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -140,9 +144,15 @@ def load_comeback_fixtures(
         items = session.execute(statement).scalars().all()
 
     fixtures = [fixture_to_comeback_payload(item) for item in items]
-    return enrich_fixtures_with_history(
+    fixtures = enrich_fixtures_with_history(
         fixtures,
         lookback_days=history_lookback_days,
+    )
+    return enrich_fixtures_with_neighbors(
+        fixtures,
+        neighbors=neighbors,
+        max_distance=max_neighbor_distance,
+        lookback_days=neighbor_lookback_days,
     )
 
 
@@ -150,6 +160,7 @@ def comeback_data_readiness(fixtures: list[Mapping[str, Any]]) -> dict[str, Any]
     total = len(fixtures)
     ready = sum(1 for item in fixtures if bool(item.get("data_ready")))
     history_ready = sum(1 for item in fixtures if bool(item.get("history_ready")))
+    neighbors_ready = sum(1 for item in fixtures if bool(item.get("neighbors_ready")))
     missing_counts = {key: 0 for key in REQUIRED_MARKET_FIELDS}
     direct_htft = sum(
         1
@@ -171,6 +182,8 @@ def comeback_data_readiness(fixtures: list[Mapping[str, Any]]) -> dict[str, Any]
         "ready_ratio": (round(ready / total, 4) if total else 0.0),
         "history_ready": history_ready,
         "history_ready_ratio": (round(history_ready / total, 4) if total else 0.0),
+        "neighbors_ready": neighbors_ready,
+        "neighbors_ready_ratio": (round(neighbors_ready / total, 4) if total else 0.0),
         "direct_htft_ready": direct_htft,
         "direct_htft_ratio": (round(direct_htft / total, 4) if total else 0.0),
         "missing_counts": missing_counts,
