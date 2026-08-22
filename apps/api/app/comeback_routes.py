@@ -212,8 +212,18 @@ def comeback_self_check_text(
         f"THRESHOLDS: 2/1={payload['thresholds']['2/1']} | 1/2={payload['thresholds']['1/2']}",
         f"FIXTURES: {readiness.get('fixtures', 0)} | DATA READY: {readiness.get('ready', 0)}",
         f"HISTORY READY: {readiness.get('history_ready', 0)} | DIRECT HTFT: {readiness.get('direct_htft_ready', 0)}",
+        f"PREDICTIONS: available={readiness.get('prediction_available', 0)} | items={readiness.get('prediction_items', 0)} | empty={readiness.get('prediction_empty', 0)} | errors={readiness.get('prediction_error_count', 0)}",
         f"CANDIDATES: {payload['candidate_count']}",
     ]
+    for error in readiness.get("prediction_errors", ()):
+        lines.append(
+            f"PREDICTION ERROR x{error.get('count', 0)}: {error.get('error', '')}"
+        )
+    missing = readiness.get("missing_counts", {})
+    if missing:
+        lines.append(
+            "MISSING: " + ", ".join(f"{key}={value}" for key, value in missing.items())
+        )
     for index, item in enumerate(payload["top_candidates"], start=1):
         lines.append(
             f"{index}. {item.get('home_team')} - {item.get('away_team')} | "
