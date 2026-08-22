@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Query
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from .comeback_backtest import run_comeback_backtest
@@ -140,13 +141,7 @@ def comeback_backtest(
     }
 
 
-@router.get("/self-check")
-def comeback_self_check(
-    hours: int = Query(default=36, ge=1, le=168),
-    lookback_days: int = Query(default=1460, ge=90, le=3650),
-    min_matches: int = Query(default=100, ge=20, le=5000),
-    limit: int = Query(default=3, ge=1, le=20),
-):
+def _self_check_payload(hours: int, lookback_days: int, min_matches: int, limit: int) -> dict[str, Any]:
     start = datetime.now(timezone.utc)
     fixtures = load_comeback_fixtures(
         start=start,
@@ -188,6 +183,44 @@ def comeback_self_check(
         "candidate_count": len(items),
         "top_candidates": items,
     }
+
+
+@router.get("/self-check")
+def comeback_self_check(
+    hours: int = Query(default=36, ge=1, le=168),
+    lookback_days: int = Query(default=1460, ge=90, le=3650),
+    min_matches: int = Query(default=100, ge=20, le=5000),
+    limit: int = Query(default=3, ge=1, le=20),
+):
+    return _self_check_payload(hours, lookback_days, min_matches, limit)
+
+
+@router.get("/self-check.txt", response_class=PlainTextResponse)
+def comeback_self_check_text(
+    hours: int = Query(default=36, ge=1, le=168),
+    lookback_days: int = Query(default=1460, ge=90, le=3650),
+    min_matches: int = Query(default=100, ge=20, le=5000),
+    limit: int = Query(default=3, ge=1, le=20),
+):
+    payload = _self_check_payload(hours, lookback_days, min_matches, limit)
+    backtest = payload["backtest"]
+    readiness = payload["readiness"]
+    lines = [
+        "ASLAN 2/1-1/2 MOTOR SELF CHECK",
+        f"READY: {'YES' if payload['ready_for_live_use'] else 'NO'}",
+        f"BACKTEST: {backtest['eligible_matches']}/{backtest['minimum_required']} eligible",
+        f"THRESHOLDS: 2/1={payload['thresholds']['2/1']} | 1/2={payload['thresholds']['1/2']}",
+        f"FIXTURES: {readiness.get('fixtures', 0)} | DATA READY: {readiness.get('ready', 0)}",
+        f"HISTORY READY: {readiness.get('history_ready', 0)} | DIRECT HTFT: {readiness.get('direct_htft_ready', 0)}",
+        f"CANDIDATES: {payload['candidate_count']}",
+    ]
+    for index, item in enumerate(payload["top_candidates"], start=1):
+        lines.append(
+            f"{index}. {item.get('home_team')} - {item.get('away_team')} | "
+            f"{item.get('preferred_market')} | score={item.get('score')} | "
+            f"quality={item.get('quality_score')}"
+        )
+    return "\n".join(lines) + "\n"
 
 
 @router.get("/threshold-guide")
