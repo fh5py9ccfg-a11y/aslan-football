@@ -18,38 +18,36 @@ def _norm_pct(value: float) -> float:
 
 @dataclass(frozen=True)
 class ComebackInputs:
-    # Match-result implied probabilities (vig-adjusted if possible).
     home_win_probability: float
     draw_probability: float
     away_win_probability: float
 
-    # First-half implied probabilities.
     first_half_home_probability: float
     first_half_draw_probability: float
     first_half_away_probability: float
 
-    # Team behavioural signals.
     home_comeback_rate_when_behind: float = 0.0
     away_comeback_rate_when_behind: float = 0.0
     home_loss_rate_when_ahead: float = 0.0
     away_loss_rate_when_ahead: float = 0.0
 
-    # Goal timing: share of goals scored in second half.
     home_second_half_goal_share: float = 0.5
     away_second_half_goal_share: float = 0.5
 
-    # Historical HT->FT pattern rates for the current/similar profile.
     historical_2_1_rate: float = 0.0
     historical_1_2_rate: float = 0.0
 
-    # Similar-odds neighbour evidence. 0 means unavailable.
     similar_matches: int = 0
     similar_2_1_rate: float = 0.0
     similar_1_2_rate: float = 0.0
 
-    # Optional market movement: positive means the named FT side shortened.
     home_ft_shortening: float = 0.0
     away_ft_shortening: float = 0.0
+
+    # Direct provider HT/FT prediction, when available. This is not historical
+    # evidence and therefore receives its own bounded bonus in the ranking.
+    direct_2_1_probability: float = 0.0
+    direct_1_2_probability: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -69,9 +67,7 @@ class ComebackSignal:
 class ComebackDetector:
     """Ranks rare HT/FT reversals (2/1 and 1/2), not ordinary match winners.
 
-    The detector deliberately combines independent evidence rather than using a
-    single favourite/underdog rule. Scores are ranking signals (0..100), not
-    calibrated probabilities.
+    Scores are ranking signals (0..100), not calibrated probabilities.
     """
 
     def __init__(self, *, alert_threshold: int = 75, min_similar_matches: int = 20):
@@ -80,9 +76,6 @@ class ComebackDetector:
 
     @staticmethod
     def _favourite_gap(ft_side: float, fh_side: float) -> float:
-        # Strong FT support without equally strong FH support is useful for a
-        # comeback profile: the market likes the side over 90 minutes but not
-        # necessarily from kickoff.
         return _clamp((ft_side - fh_side + 0.10) / 0.35)
 
     @staticmethod
@@ -91,9 +84,14 @@ class ComebackDetector:
 
     @staticmethod
     def _movement(shortening: float) -> float:
-        # Inputs can be fractional probability/price movement. Cap extreme
-        # values because this is supporting evidence only.
         return _clamp(float(shortening) / 0.12)
+
+    @staticmethod
+    def _direct_htft_bonus(probability: float) -> float:
+        # Rare HT/FT reversals often sit well below ordinary match-result
+        # probabilities. Treat 18% as a very strong direct-provider signal and
+        # cap the contribution so it cannot dominate all other evidence.
+        return 12.0 * _clamp(_norm_pct(probability) / 0.18)
 
     def evaluate(self, inputs: ComebackInputs) -> ComebackSignal:
         hp = _norm_pct(inputs.home_win_probability)
@@ -111,9 +109,13 @@ class ComebackDetector:
         sim21 = _norm_pct(inputs.similar_2_1_rate)
         sim12 = _norm_pct(inputs.similar_1_2_rate)
 
-        neighbour_weight = _clamp(inputs.similar_matches / max(self.min_similar_matches, 1))
+        direct21 = _norm_pct(inputs.direct_2_1_probability)
+        direct12 = _norm_pct(inputs.direct_1_2_probability)
 
-        # 2/1 = away leads at HT, home wins FT.
+        neighbour_weight = _clamp(
+            inputs.similar_matches / max(self.min_similar_matches, 1)
+        )
+
         score21 = 100.0 * (
             0.22 * self._favourite_gap(hp, fhh)
             + 0.20 * home_comeback
@@ -123,9 +125,8 @@ class ComebackDetector:
             + 0.08 * _clamp(hist21 / 0.18)
             + 0.09 * neighbour_weight * _clamp(sim21 / 0.18)
             + 0.03 * self._movement(inputs.home_ft_shortening)
-        )
+        ) + self._direct_htft_bonus(direct21)
 
-        # 1/2 = home leads at HT, away wins FT.
         score12 = 100.0 * (
             0.22 * self._favourite_gap(ap, fha)
             + 0.20 * away_comeback
@@ -135,12 +136,14 @@ class ComebackDetector:
             + 0.08 * _clamp(hist12 / 0.18)
             + 0.09 * neighbour_weight * _clamp(sim12 / 0.18)
             + 0.03 * self._movement(inputs.away_ft_shortening)
-        )
+        ) + self._direct_htft_bonus(direct12)
 
         score21_i = int(round(_clamp(score21 / 100.0) * 100))
         score12_i = int(round(_clamp(score12 / 100.0) * 100))
         top = max(score21_i, score12_i)
-        turnaround = int(round(0.65 * top + 0.35 * min(100, score21_i + score12_i)))
+        turnaround = int(
+            round(0.65 * top + 0.35 * min(100, score21_i + score12_i))
+        )
 
         preferred = "2/1" if score21_i >= score12_i else "1/2"
         preferred_score = max(score21_i, score12_i)
@@ -159,9 +162,21 @@ class ComebackDetector:
 
         reasons: list[str] = []
         if score21_i >= self.alert_threshold:
-            reasons.append("Home side has a 2/1 reversal profile: FT support + comeback/late-goal evidence.")
+            reasons.append(
+                "Home side has a 2/1 reversal profile: FT support + comeback/late-goal evidence."
+            )
         if score12_i >= self.alert_threshold:
-            reasons.append("Away side has a 1/2 reversal profile: FT support + comeback/late-goal evidence.")
+            reasons.append(
+                "Away side has a 1/2 reversal profile: FT support + comeback/late-goal evidence."
+            )
+        if direct21 > 0:
+            reasons.append(
+                f"Direct HT/FT provider signal for 2/1: {direct21:.1%}."
+            )
+        if direct12 > 0:
+            reasons.append(
+                f"Direct HT/FT provider signal for 1/2: {direct12:.1%}."
+            )
         if inputs.similar_matches >= self.min_similar_matches:
             reasons.append(
                 f"Similar-odds evidence included from {int(inputs.similar_matches)} historical matches."
@@ -173,7 +188,9 @@ class ComebackDetector:
             "2/1 and 1/2 are rare outcomes; detector scores are ranking signals, not guarantees."
         ]
         if inputs.similar_matches < self.min_similar_matches:
-            warnings.append("Similar-match sample is small; neighbour evidence was down-weighted.")
+            warnings.append(
+                "Similar-match sample is small; neighbour evidence was down-weighted."
+            )
 
         return ComebackSignal(
             turnaround_potential=turnaround,
@@ -187,7 +204,6 @@ class ComebackDetector:
 
 
 def evaluate_comeback(payload: Mapping[str, object], *, alert_threshold: int = 75) -> dict:
-    """Small integration helper for API/service layers."""
     detector = ComebackDetector(alert_threshold=alert_threshold)
     inputs = ComebackInputs(**dict(payload))
     return detector.evaluate(inputs).as_dict()
