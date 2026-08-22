@@ -15,7 +15,7 @@ async def run():
     token = os.environ["SPORTMONKS_API_TOKEN"]
     interval = float(os.getenv("SPORTMONKS_SYNC_INTERVAL_SECONDS", "30"))
     predictions_enabled = os.getenv(
-        "SPORTMONKS_PREDICTIONS_ENABLED", "false"
+        "SPORTMONKS_PREDICTIONS_ENABLED", "true"
     ).strip().lower() in {"1", "true", "yes", "on"}
     fixture_ids_raw = os.getenv("SPORTMONKS_FIXTURE_IDS", "")
     fixture_ids = tuple(
