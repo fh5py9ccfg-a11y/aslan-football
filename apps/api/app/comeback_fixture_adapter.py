@@ -33,6 +33,8 @@ OPTIONAL_SIGNAL_FIELDS = (
     "similar_1_2_rate",
     "home_ft_shortening",
     "away_ft_shortening",
+    "direct_2_1_probability",
+    "direct_1_2_probability",
 )
 
 
@@ -70,12 +72,7 @@ def _number(source: Mapping[str, Any], key: str) -> float | int | None:
 
 
 def _extract_comeback_inputs(raw: Mapping[str, Any]) -> dict[str, Any]:
-    """Extract precomputed model/market signals without inventing values.
-
-    Provider payloads vary over time, so we accept a few explicit enrichment
-    containers. We intentionally do not convert ordinary 1X2 prices into
-    first-half probabilities unless both complete markets are already present.
-    """
+    """Extract precomputed model/market signals without inventing values."""
     source = _first_mapping(
         raw.get("comeback_inputs"),
         raw.get("prediction_features"),
@@ -147,6 +144,14 @@ def comeback_data_readiness(fixtures: list[Mapping[str, Any]]) -> dict[str, Any]
     total = len(fixtures)
     ready = sum(1 for item in fixtures if bool(item.get("data_ready")))
     missing_counts = {key: 0 for key in REQUIRED_MARKET_FIELDS}
+    direct_htft = sum(
+        1
+        for item in fixtures
+        if any(
+            key in (item.get("comeback_inputs") or {})
+            for key in ("direct_2_1_probability", "direct_1_2_probability")
+        )
+    )
     for item in fixtures:
         for key in item.get("missing_fields", ()):
             if key in missing_counts:
@@ -157,5 +162,7 @@ def comeback_data_readiness(fixtures: list[Mapping[str, Any]]) -> dict[str, Any]
         "ready": ready,
         "not_ready": total - ready,
         "ready_ratio": (round(ready / total, 4) if total else 0.0),
+        "direct_htft_ready": direct_htft,
+        "direct_htft_ratio": (round(direct_htft / total, 4) if total else 0.0),
         "missing_counts": missing_counts,
     }
