@@ -68,7 +68,11 @@ def sportmonks_predictions_to_comeback_inputs(
         if "FULLTIME_RESULT_PROBABILITY" in type_name and "1ST_HALF" not in type_name:
             values = _three_way(predictions)
             if values is not None:
-                result["home_win_probability"], result["draw_probability"], result["away_win_probability"] = values
+                (
+                    result["home_win_probability"],
+                    result["draw_probability"],
+                    result["away_win_probability"],
+                ) = values
 
         elif (
             "FIRST_HALF_WINNER" in type_name
@@ -86,8 +90,8 @@ def sportmonks_predictions_to_comeback_inputs(
         elif "HALF_TIME_FULL_TIME" in type_name or type_name.endswith("HT_FT_PROBABILITY"):
             score_21, score_12 = _extract_htft(predictions)
             if score_21 is not None:
-                result["historical_2_1_rate"] = score_21
+                result["direct_2_1_probability"] = score_21
             if score_12 is not None:
-                result["historical_1_2_rate"] = score_12
+                result["direct_1_2_probability"] = score_12
 
     return result
