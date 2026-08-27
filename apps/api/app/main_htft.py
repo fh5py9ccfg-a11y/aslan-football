@@ -16,6 +16,9 @@ from sqlalchemy import text
 
 from .main import app
 from .db import SessionLocal
+from .h2h_bridge import router as h2h_router
+
+app.include_router(h2h_router)
 
 
 def _fair_odd(probability):
